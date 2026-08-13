@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from api.llm import get_llm
+from api.llm import extract_text, get_llm
 from api.schemas import Insurance, Patient, PatientEncounter
 
 
@@ -61,8 +61,15 @@ def intake_agent(state: PatientEncounter) -> dict:
 
     try:
         import json
-        data = json.loads(resp.content)
-        patient = Patient(**data["patient"])
+        raw = extract_text(resp)
+        if "```" in raw:
+            raw = raw.split("```json")[-1].split("```")[0] if "```json" in raw else raw.split("```")[1].split("```")[0]
+        data = json.loads(raw.strip())
+        p = data["patient"]
+        if not p.get("mrn"):
+            import uuid
+            p["mrn"] = f"IBN-{uuid.uuid4().hex[:6].upper()}"
+        patient = Patient(**p)
         insurance = Insurance(**data["insurance"])
         complaint = data["chief_complaint"]
     except Exception as e:

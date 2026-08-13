@@ -17,7 +17,7 @@ import json
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from api.clinical.panels import get_cap_panel
-from api.llm import get_llm
+from api.llm import extract_text, get_llm
 from api.schemas import ImagingOrder, LabOrder, PatientEncounter
 
 
@@ -97,7 +97,7 @@ def orders_agent(state: PatientEncounter) -> dict:
     ])
 
     try:
-        data = json.loads(resp.content)
+        data = json.loads(extract_text(resp))
         lab_orders = [LabOrder(**l) for l in data.get("lab_orders", [])]
         imaging_orders = [ImagingOrder(**i) for i in data.get("imaging_orders", [])]
         order_rationale = data.get("order_rationale", "")

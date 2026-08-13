@@ -12,7 +12,7 @@ import json
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from api.llm import get_llm
+from api.llm import extract_text, get_llm
 from api.schemas import PatientEncounter
 
 
@@ -70,7 +70,7 @@ def triage_agent(state: PatientEncounter) -> dict:
     ])
 
     try:
-        data = json.loads(resp.content)
+        data = json.loads(extract_text(resp))
         esi = int(data["esi_level"])
         flags = [str(f) for f in data.get("red_flags", [])]
     except Exception as e:

@@ -16,6 +16,7 @@ import os
 import pathlib
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage
 
 CACHE_DIR = pathlib.Path(os.getenv("LLM_CACHE_DIR", ".llm_cache"))
 
@@ -40,6 +41,26 @@ def write_cache(prompt: str, response: str) -> None:
     )
 
 
+def extract_text(resp: BaseMessage) -> str:
+    """Normalize AIMessage.content to a plain string.
+
+    Newer Gemini models return content as a list of content blocks
+    (e.g. [{'type': 'text', 'text': '...'}]) instead of a string.
+    """
+    c = resp.content
+    if isinstance(c, str):
+        return c
+    if isinstance(c, list):
+        parts = []
+        for block in c:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get("text"):
+                parts.append(block["text"])
+        return "\n".join(parts)
+    return str(c)
+
+
 def get_llm(task: str = "fast") -> BaseChatModel:
     """Return a model for the given task type.
 
@@ -51,8 +72,8 @@ def get_llm(task: str = "fast") -> BaseChatModel:
     google_key = os.getenv("GOOGLE_API_KEY", "")
 
     model_fast = os.getenv("MODEL_FAST", "llama-3.3-70b-versatile")
-    model_reason = os.getenv("MODEL_REASON", "gemini-2.5-flash")
-    model_vision = os.getenv("MODEL_VISION", "gemini-2.5-flash")
+    model_reason = os.getenv("MODEL_REASON", "gemini-3.6-flash")
+    model_vision = os.getenv("MODEL_VISION", "gemini-3.6-flash")
 
     gemini_available = bool(google_key)
     groq_available = bool(groq_key)
@@ -114,7 +135,7 @@ def get_llm(task: str = "fast") -> BaseChatModel:
             from langchain_google_genai import ChatGoogleGenerativeAI
 
             fallback = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash-lite",
+                model="gemini-3.5-flash-lite",
                 temperature=0.1,
                 google_api_key=google_key,
             )
@@ -125,7 +146,7 @@ def get_llm(task: str = "fast") -> BaseChatModel:
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         return ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash-lite",
+            model="gemini-3.5-flash-lite",
             temperature=0.1,
             google_api_key=google_key,
         )

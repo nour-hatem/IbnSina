@@ -132,11 +132,11 @@ Every provider below is free at the volume this project needs. Limits verified A
 | **Google AI Studio (Gemini)** | Gemini 2.5 Flash **15 RPM / 1,500 RPD**; Gemini 3 Flash 10 RPM / 1,500 RPD; Flash-Lite 30 RPM. 1M-token context. No card. | ✅ **Yes** | **Primary.** The CXR reader (vision) + synthesis + disposition. |
 | **Groq** | **30 RPM / 14,400 RPD**, 6,000 TPM. Every model, no credit system, no card. Llama 4 Maverick is halved (15 RPM / 500 RPD). | Limited (Llama 4 Scout) | **Workhorse** for the text agents: intake, triage, history, orders. LPU latency is sub-second — it *makes* the door-to-decision story. |
 | **OpenRouter** | 20 RPM, **50 RPD** free (→1,000/day permanently after a one-time $10). 28+ free models. | Some | **Fallback only.** 50/day is too thin to build on. |
-| **Ollama (local)** — *Fallback D* | Unlimited, offline | LLaVA / Qwen-VL | **Demo insurance**, and the only free path that keeps data on-premise. No network, no quota, no outage, no third-party training on your inputs. |
+| **Ollama (local)** | Unlimited, offline | LLaVA / Qwen-VL | **Demo insurance.** No network, no quota, no outage. |
 
 > ⚠️ **Pro models left the Gemini free tier on 1 April 2026** — free access is **Flash and Flash-Lite only**. Any tutorial telling you to call `gemini-pro` for free is stale. Write Flash into the config from the first commit.
 
-### Routing
+### Routing (replaces the paid Claude routing)
 
 | Node | Provider | Model | Why |
 |---|---|---|---|
@@ -739,7 +739,7 @@ Each returns a 1–5 score with justification, written to `eval/results.json`.
 4. **Uncertainty is mandatory output.** `CXRRead.limitations` is a required field. A model that can't say "AP projection, suboptimal inspiration, limited assessment of the left base" is not safe to deploy anywhere.
 5. **No numeric probabilities from the VLM.** Ordinal buckets only. A confident-sounding "87%" from an unvalidated model is actively harmful.
 6. **Full audit trail.** Every proposal and every human action, timestamped and attributable.
-7. **Synthetic data only.** No real PHI touches this system. Redaction helper (`llama-3.1-8b-instant`) strips identifiers before any external call.
+7. **Synthetic data only.** No real PHI touches this system. Redaction helper (`haiku`) strips identifiers before any external call.
 8. **Failure is degraded, not fatal.** A node that errors returns `{"errors": [...]}` and the graph continues with that section marked unavailable. A dead radiology agent must not block disposition.
 
 ---
@@ -780,9 +780,6 @@ Each returns a 1–5 score with justification, written to `eval/results.json`.
 | Render cold start during demo | **High** | High | Warm the URL 2 min before; keep a local uvicorn as backup |
 | CORS blocks the Vercel frontend | High | Medium | Middleware in the first commit; test cross-origin at T+15 |
 | VLM refuses to read a medical image | Medium | High | Test with your actual images before T+30; frame the prompt as "assisting a radiologist with a preliminary draft"; keep a cached good response in `demo_traces.json` |
-| **Free-tier 429 during the demo** | **High** | **High** | `.with_fallbacks()` Groq↔Gemini; per-developer keys; disk cache so demo cases never hit the network twice; Ollama as last resort |
-| Gemini free tier changes again (Pro was removed Apr 2026) | Medium | Medium | Model names live in `.env`, never hardcoded — swapping is a config change, not a code change |
-| Someone uploads a real patient film "just to test" | Medium | **Severe** | Free tiers train on submitted data. Synthetic images only, checked into the repo. State the rule in the README and out loud at kickoff |
 | Schema churn breaks parallel work | Medium | **High** | Freeze at T+5; any change requires a verbal announcement and everyone pulls |
 | Supabase auth/RLS eats 15 minutes | Medium | Medium | Service key server-side only, permissive RLS, documented as a known gap |
 | Judges challenge clinical validity | **High** | High | Answer honestly: synthetic data, n=5, not validated, harness built. Confidence in your limitations beats defensiveness about them |

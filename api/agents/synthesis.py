@@ -18,7 +18,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from api.clinical.rules import disposition_from_severity
 from api.clinical.scores import paediatric_severity
-from api.llm import get_llm
+from api.llm import extract_text, get_llm
 from api.schemas import DifferentialItem, PatientEncounter
 
 
@@ -154,7 +154,7 @@ def synthesis_agent(state: PatientEncounter) -> dict:
             SystemMessage(content=prompt),
             HumanMessage(content="Synthesise the assessment now."),
         ])
-        raw = resp.content
+        raw = extract_text(resp)
         if "```" in raw:
             raw = raw.split("```json")[-1].split("```")[0] if "```json" in raw else raw.split("```")[1].split("```")[0]
         data = json.loads(raw.strip())

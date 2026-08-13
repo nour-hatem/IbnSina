@@ -14,7 +14,7 @@ import json
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from api.llm import get_llm
+from api.llm import extract_text, get_llm
 from api.schemas import PatientEncounter
 
 
@@ -67,21 +67,25 @@ def history_agent(state: PatientEncounter) -> dict:
     ])
 
     try:
-        data = json.loads(resp.content)
+        data = json.loads(extract_text(resp))
     except Exception as e:
         return {"errors": [f"history_agent parse error: {e}"]}
 
+    soap = data.get("soap_note")
+    if isinstance(soap, dict):
+        soap = "\n".join(f"{k}: {v}" for k, v in soap.items() if v)
+
     return {
-        "hpi": data.get("hpi"),
+        "hpi": data.get("hpi") if isinstance(data.get("hpi"), str) else json.dumps(data.get("hpi")),
         "pmh": data.get("pmh", []),
         "medications": data.get("medications", []),
         "allergies": data.get("allergies", []),
         "family_hx": data.get("family_hx", []),
         "surgical_hx": data.get("surgical_hx", []),
-        "birth_history": data.get("birth_history"),
-        "immunisation_status": data.get("immunisation_status"),
-        "developmental_status": data.get("developmental_status"),
-        "social_hx": data.get("social_hx"),
-        "soap_note": data.get("soap_note"),
+        "birth_history": data.get("birth_history") if isinstance(data.get("birth_history"), str) else str(data.get("birth_history", "")),
+        "immunisation_status": data.get("immunisation_status") if isinstance(data.get("immunisation_status"), str) else str(data.get("immunisation_status", "")),
+        "developmental_status": data.get("developmental_status") if isinstance(data.get("developmental_status"), str) else str(data.get("developmental_status", "")),
+        "social_hx": data.get("social_hx") if isinstance(data.get("social_hx"), str) else str(data.get("social_hx", "")),
+        "soap_note": soap if isinstance(soap, str) else str(soap or ""),
         "current_node": "history",
     }

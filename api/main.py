@@ -13,13 +13,22 @@ Routes:
 from __future__ import annotations
 
 import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
 import shutil
 import uuid
 from datetime import datetime, timezone
 
+import logging
+import traceback
+
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+logger = logging.getLogger("ibn_sina")
 
 from api.db import audit_log, save_encounter
 from api.graph import get_graph
@@ -139,20 +148,35 @@ def run_encounter(encounter_id: str):
     snapshot = None
     try:
         snapshot = graph.get_state(config)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("get_state failed: %s", e)
 
-    if snapshot and snapshot.values and snapshot.next:
-        # Graph is interrupted — resume it
+    has_checkpoint = bool(snapshot and snapshot.values)
+    is_interrupted = bool(has_checkpoint and snapshot.next)
+    is_complete = bool(has_checkpoint and not snapshot.next)
+
+    if is_complete:
+        # Already finished — return current state without re-running
+        current_state = snapshot.values
+        if isinstance(current_state, PatientEncounter):
+            current_state = current_state.model_dump()
+        return {"encounter_id": encounter_id, "state": current_state, "next": [], "status": "complete"}
+
+    try:
         result = None
-        for event in graph.stream(None, config, stream_mode="values"):
-            result = event
-    else:
-        # Start fresh
-        initial = _encounters[encounter_id]
-        result = None
-        for event in graph.stream(initial, config, stream_mode="values"):
-            result = event
+        if is_interrupted or (has_checkpoint and not is_complete):
+            # Resume from interrupt or mid-run checkpoint
+            for event in graph.stream(None, config, stream_mode="values"):
+                result = event
+        else:
+            # Fresh start
+            initial = _encounters[encounter_id]
+            for event in graph.stream(initial, config, stream_mode="values"):
+                result = event
+    except Exception as e:
+        tb = traceback.format_exc()
+        logger.error("Graph execution error for %s:\n%s", encounter_id, tb)
+        raise HTTPException(500, detail=f"Graph error: {e}\n\n{tb}")
 
     if result:
         if isinstance(result, PatientEncounter):
@@ -161,11 +185,9 @@ def run_encounter(encounter_id: str):
             state_dict = result
         else:
             state_dict = dict(result)
-
         _encounters[encounter_id] = state_dict
         save_encounter(encounter_id, state_dict)
 
-    # Get current state after run
     snapshot = graph.get_state(config)
     next_nodes = list(snapshot.next) if snapshot and snapshot.next else []
 
@@ -215,9 +237,14 @@ def approve_gate(encounter_id: str, req: ApproveRequest):
     audit_log(encounter_id, f"user:{req.approved_by}", req.action, node=pending_node)
 
     # Resume the graph
-    result = None
-    for event in graph.stream(None, config, stream_mode="values"):
-        result = event
+    try:
+        result = None
+        for event in graph.stream(None, config, stream_mode="values"):
+            result = event
+    except Exception as e:
+        tb = traceback.format_exc()
+        logger.error("Graph resume error for %s:\n%s", encounter_id, tb)
+        raise HTTPException(500, detail=f"Graph error: {e}\n\n{tb}")
 
     if result:
         state_dict = result.model_dump() if isinstance(result, PatientEncounter) else dict(result)

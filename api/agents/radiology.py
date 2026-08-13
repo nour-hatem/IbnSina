@@ -18,7 +18,7 @@ import os
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from api.llm import get_llm, read_cache, write_cache
+from api.llm import extract_text, get_llm, read_cache, write_cache
 from api.schemas import CXRRead, PatientEncounter
 
 
@@ -96,15 +96,15 @@ def radiology_agent(state: PatientEncounter) -> dict:
     ])
 
     try:
-        raw = resp.content
+        raw = extract_text(resp)
         if "```" in raw:
             raw = raw.split("```json")[-1].split("```")[0] if "```json" in raw else raw.split("```")[1].split("```")[0]
         data = json.loads(raw.strip())
-        data["model_used"] = os.getenv("MODEL_VISION", "gemini-2.5-flash")
+        data["model_used"] = os.getenv("MODEL_VISION", "gemini-3.6-flash")
         cxr = CXRRead(**data)
         write_cache(cache_key, json.dumps(data))
     except Exception as e:
-        return {"errors": [f"radiology_agent parse error: {e}\nRaw: {resp.content[:500]}"]}
+        return {"errors": [f"radiology_agent parse error: {e}\nRaw: {extract_text(resp)[:500]}"]}
 
     return {
         "cxr_read": cxr,

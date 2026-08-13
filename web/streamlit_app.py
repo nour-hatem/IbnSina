@@ -10,6 +10,15 @@ import json
 import requests
 import streamlit as st
 
+
+def _api_error(e: requests.RequestException) -> str:
+    try:
+        body = e.response.json()
+        detail = body.get("detail", str(body))
+        return f"{e.response.status_code}: {detail}"
+    except Exception:
+        return str(e)
+
 API_URL = st.sidebar.text_input("API URL", value="http://localhost:8000")
 
 st.set_page_config(
