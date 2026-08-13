@@ -1,0 +1,9 @@
+data/
+chest_xray/
+*.jpeg
+*.jpg
+!eval/cases/images/*.jpeg
+.llm_cache/
+.env
+__pycache__/
+*.pyc

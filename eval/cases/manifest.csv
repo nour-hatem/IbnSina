@@ -1,0 +1,6 @@
+mrn,patient_name,age_years,sex,record_pdf,image_path,image_class,pneumonia_subtype,expected_disposition,cannot_miss,evaluation_note
+IBN-001,Yousef Mahmoud Ali,4,Male,records/IBN-001_Yousef.pdf,chest_xray/test/PNEUMONIA/person3_bacteria_10.jpeg,PNEUMONIA,bacterial,admit_ward_consider_picu,no,"Severe CAP: hypoxaemia 88%, grunting, unable to drink, reduced consciousness"
+IBN-002,Malak Tarek Hassan,2,Female,records/IBN-002_Malak.pdf,chest_xray/test/PNEUMONIA/person1_virus_6.jpeg,PNEUMONIA,viral,discharge_home,no,"Mild viral CAP: no hypoxaemia, no distress, feeding well, low PCT"
+IBN-003,Omar Sami Abdelrahman,3,Male,records/IBN-003_Omar.pdf,chest_xray/test/PNEUMONIA/person8_bacteria_37.jpeg,PNEUMONIA,bacterial,observation_or_admit,no,"Moderate CAP; social factors (65km, no transport, sole carer) drive admission"
+IBN-004,Layla Ahmed Mostafa,1,Female,records/IBN-004_Layla.pdf,chest_xray/test/NORMAL/NORMAL2-IM-0222-0001.jpeg,NORMAL,n/a,discharge_home,no,Bronchiolitis (RSV+) with CLEAR film - must NOT be called pneumonia
+IBN-005,Adam Khaled Nasser,2,Male,records/IBN-005_Adam.pdf,chest_xray/test/NORMAL/IM-0115-0001.jpeg,NORMAL,n/a,admit_for_bronchoscopy,yes,CANNOT-MISS: foreign body aspiration. Normal film is falsely reassuring
