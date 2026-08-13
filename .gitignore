@@ -1,9 +1,19 @@
+# Dataset (1.15 GB — download from Kaggle)
 data/
 chest_xray/
 *.jpeg
 *.jpg
 !eval/cases/images/*.jpeg
+
+# Runtime
 .llm_cache/
 .env
 __pycache__/
 *.pyc
+.pytest_cache/
+uploads/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
