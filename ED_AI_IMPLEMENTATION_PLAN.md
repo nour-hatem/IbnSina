@@ -1,18 +1,32 @@
-# ED-Copilot — Emergency Department Expert Automation & Decision-Support System
+# ابن سينا · Ibn Sina — Emergency Department Expert Automation & Decision-Support System
 ## Implementation Plan (Hackathon MVP → 60 minutes, then roadmap)
 
+> **Ibn Sina** (Avicenna, 980–1037) wrote *Al-Qānūn fī al-Ṭibb* — The Canon of Medicine — the text that
+> systematised clinical medicine into an ordered process of history, examination, evidence, and reasoned
+> conclusion, and remained the standard reference for six centuries. That is precisely what this system does:
+> it does not replace the physician's judgement, it structures the path to it. **Use this in the pitch** — the
+> name is not decoration, it is the thesis.
+
+**Repository:** `github.com/nour-hatem/IbnSina`
 **Author role:** Medical AI / Biomedical Automation Engineering
 **Date:** 2026-08-13
 **Team size:** ≤ 4
 **Clinical focus (MVP):** Community-acquired pneumonia (CAP), chest X-ray pathway
 **Autonomy model:** Recommend-only — every agent output is a *suggestion* a clinician accepts / edits / rejects
 **Audience:** Hackathon / competition demo
+**Cost constraint:** **Zero paid APIs.** Every component runs on a free tier or locally — see Section 3.5.
 
 > ⚠️ **REGULATORY BANNER — must appear in the UI, the README, and the demo slide.**
-> This system is a research prototype running on **synthetic patient data**. It is **not** a medical device,
+> Ibn Sina is a research prototype running on **synthetic patient data**. It is **not** a medical device,
 > is **not** CE/FDA cleared, and must **never** be used for real clinical decisions. The chest X-ray reader is a
 > general-purpose vision-language model used as a *narrative assistant*, **not a validated pneumonia classifier**.
 > All outputs require licensed-clinician review.
+>
+> 🔒 **Free-tier data policy — read this before you upload anything.** Google's Gemini free tier states that
+> submitted data **may be used to improve Google's products**; the same is broadly true of other free
+> inference tiers. This is legally incompatible with real patient data under GDPR/HIPAA and any hospital DPA.
+> **On free tiers, synthetic data only — no exceptions, not even "just to test."** Real-PHI operation requires
+> a paid tier with a zero-retention agreement or fully local inference (Section 3.5, Fallback D).
 
 ---
 
@@ -42,7 +56,7 @@ The requested scope (5+ agents, Supabase, Docker, Render + Vercel, GitHub sync, 
 
 The real ED journey you described, and what automates each step:
 
-| # | Real-world step | Actor today | ED-Copilot node | Human gate |
+| # | Real-world step | Actor today | Ibn Sina node | Human gate |
 |---|---|---|---|---|
 | 1 | Registration: insurance, demographics, chief complaint | Receptionist | `intake_agent` | Receptionist confirms |
 | 2 | Triage: vitals, acuity assignment | Triage nurse | `triage_agent` (ESI 1–5) | Nurse confirms ESI |
@@ -56,7 +70,7 @@ The real ED journey you described, and what automates each step:
 
 Bolded gates are hard stops in the graph — the LangGraph run **interrupts** and cannot proceed without an approval event. This is the single most important architectural property for clinical credibility, and it is 6 lines of code (`interrupt_before=[...]`).
 
-**Where the value actually is (say this to judges):** not "AI diagnoses pneumonia" — that's a solved and unimpressive claim. The value is **door-to-decision time**. A CAP patient in a typical ED waits on a serial chain: clerking → order entry → lab turnaround → radiology queue → physician re-review → disposition. ED-Copilot collapses the *coordination* latency: orders are drafted the moment the history is structured, the CXR narrative is ready before the physician re-opens the chart, and the disposition score is pre-computed with the evidence attached. Target metric: **median door-to-disposition, minutes.**
+**Where the value actually is (say this to judges):** not "AI diagnoses pneumonia" — that's a solved and unimpressive claim. The value is **door-to-decision time**. A CAP patient in a typical ED waits on a serial chain: clerking → order entry → lab turnaround → radiology queue → physician re-review → disposition. Ibn Sina collapses the *coordination* latency: orders are drafted the moment the history is structured, the CXR narrative is ready before the physician re-opens the chart, and the disposition score is pre-computed with the evidence attached. Target metric: **median door-to-disposition, minutes.**
 
 ---
 
@@ -82,9 +96,9 @@ Bolded gates are hard stops in the graph — the LangGraph run **interrupts** an
         │        ┌─────────────────────┼─────────────────────┐
         │        │                     │                     │
         │  ┌─────▼──────┐     ┌────────▼────────┐   ┌────────▼────────┐
-        │  │ Claude     │     │ LangMem store   │   │ AgentOps        │
-        │  │ (text+VLM) │     │ (episodic +     │   │ (traces, cost,  │
-        │  └────────────┘     │  semantic)      │   │  latency)       │
+        │  │ Groq llama │     │ LangMem store   │   │ AgentOps        │
+        │  │ Gemini VLM │     │ (episodic +     │   │ (traces, quota, │
+        │  └────────────┘     │  local embeds)  │   │  latency)       │
         │                     └────────┬────────┘   └─────────────────┘
         │                              │
         │                    ┌─────────▼──────────┐
@@ -100,15 +114,87 @@ Bolded gates are hard stops in the graph — the LangGraph run **interrupts** an
 | Orchestration | **LangGraph** `StateGraph` | Explicit nodes/edges + `interrupt_before` gives auditable, resumable, human-gated flow. CrewAI's role-play autonomy is the wrong shape for a clinical pathway where the sequence is *fixed by protocol*. |
 | Agent primitives | **LangChain** LCEL + structured output | Pydantic-validated outputs; no free-text parsing of clinical data. |
 | Memory | **LangMem** | Episodic (this encounter) + semantic (patient's prior visits, "had a lobectomy 2019"). This is what makes the history agent look smart in the demo. |
-| CXR reading | **Claude vision** (`claude-opus-5`) with a constrained radiology prompt | Zero ML infra, zero training time. **Explicitly framed as narrative assistance, not classification.** |
+| CXR reading | **Gemini 2.5 / 3 Flash vision** (Google AI Studio free tier) with a constrained radiology prompt | The only *genuinely free* API with production-grade vision. Zero ML infra, zero training time. **Explicitly framed as narrative assistance, not classification.** |
 | Eval | **AgentOps** (runtime) + **CrewAI** eval crew (offline judge) | AgentOps = ops telemetry. CrewAI = a small adversarial "clinical reviewer crew" that scores transcripts. Two different jobs; use both, don't conflate. |
 | DB | **Supabase** Postgres + Storage + RLS | Managed Postgres, built-in object storage for DICOM/PNG, row-level security maps cleanly to per-encounter access. |
 | Deploy | **Render** (Docker, API) + **Vercel** (frontend) | Render runs long-lived Python containers; Vercel is best-in-class for the Next.js edge. Both auto-deploy from GitHub — that *is* your "synchronization". |
 
-**Model routing (cost + latency discipline):**
-- `claude-opus-5` — radiology read, final synthesis, disposition. Reasoning-critical.
-- `claude-sonnet-5` — intake, triage, history structuring, order drafting. High-volume, schema-bound.
-- `claude-haiku-4-5-20251001` — redaction, field extraction, summarization for the memory store.
+---
+
+## 3.5 Free-API strategy — **zero paid services, whole stack**
+
+Every provider below is free at the volume this project needs. Limits verified August 2026; re-check before demo day, free tiers move.
+
+### Inference providers
+
+| Provider | Free limits | Vision? | Use in Ibn Sina |
+|---|---|---|---|
+| **Google AI Studio (Gemini)** | Gemini 2.5 Flash **15 RPM / 1,500 RPD**; Gemini 3 Flash 10 RPM / 1,500 RPD; Flash-Lite 30 RPM. 1M-token context. No card. | ✅ **Yes** | **Primary.** The CXR reader (vision) + synthesis + disposition. |
+| **Groq** | **30 RPM / 14,400 RPD**, 6,000 TPM. Every model, no credit system, no card. Llama 4 Maverick is halved (15 RPM / 500 RPD). | Limited (Llama 4 Scout) | **Workhorse** for the text agents: intake, triage, history, orders. LPU latency is sub-second — it *makes* the door-to-decision story. |
+| **OpenRouter** | 20 RPM, **50 RPD** free (→1,000/day permanently after a one-time $10). 28+ free models. | Some | **Fallback only.** 50/day is too thin to build on. |
+| **Ollama (local)** — *Fallback D* | Unlimited, offline | LLaVA / Qwen-VL | **Demo insurance**, and the only free path that keeps data on-premise. No network, no quota, no outage, no third-party training on your inputs. |
+
+> ⚠️ **Pro models left the Gemini free tier on 1 April 2026** — free access is **Flash and Flash-Lite only**. Any tutorial telling you to call `gemini-pro` for free is stale. Write Flash into the config from the first commit.
+
+### Routing
+
+| Node | Provider | Model | Why |
+|---|---|---|---|
+| `intake`, `triage`, `history`, `orders` | Groq | `llama-3.3-70b-versatile` | 14,400 RPD absorbs all iteration; schema-bound work needs speed, not brilliance |
+| `radiology` | Gemini | `gemini-2.5-flash` | **Only free vision worth showing.** Non-negotiable |
+| `synthesis`, `disposition` | Gemini | `gemini-2.5-flash` | Long context holds the whole encounter; strongest free reasoning |
+| Redaction / summarisation for memory | Groq | `llama-3.1-8b-instant` | Cheap, high-volume, trivial task |
+| Embeddings (LangMem) | **Local** | `sentence-transformers/all-MiniLM-L6-v2` | Runs on CPU. **No API, no quota, no rate limit** — do not spend a paid or rate-limited call on embeddings |
+
+### The quota budget — do this arithmetic before you build
+
+One encounter = **6 LLM calls** (4 Groq + 2 Gemini).
+
+- Gemini: 1,500 RPD ÷ 2 = **750 encounters/day**. Not the constraint.
+- Gemini **15 RPM ÷ 2 = 7 encounters/minute** ← **this is the binding limit.**
+- Groq: 14,400 RPD ÷ 4 = 3,600 encounters/day. Never the constraint.
+
+**The real failure mode is not the daily cap — it is three developers hammering the same key during integration testing at T+30 and tripping 15 RPM simultaneously.** Mitigations, in priority order:
+
+1. **One key per developer.** Three Google accounts, three keys in three `.env` files. Free, takes 2 minutes, removes the problem entirely. Do this in pre-flight.
+2. **Cache aggressively.** Hash the prompt + image bytes → cache the response to disk. Re-running the same test case must cost **zero** calls. This alone cuts integration-phase usage by ~80%.
+3. **Exponential backoff + provider fallback**, wired once in `llm.py` and used by every node.
+
+```python
+# api/llm.py — the single choke point every agent calls. Written once, at T+5.
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
+
+def get_llm(task: str):
+    """task: 'fast' | 'reason' | 'vision'. Never construct a model client anywhere else."""
+    if task == "vision":
+        return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
+    if task == "reason":
+        return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2).with_fallbacks(
+            [ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2)]
+        )
+    return ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1).with_fallbacks(
+        [ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite", temperature=0.1)]
+    )
+```
+
+`.with_fallbacks()` is LangChain-native — a 429 on Groq silently reroutes to Gemini mid-demo and nobody in the audience notices. **This is the highest value-per-line code in the project.**
+
+### Everything else, also free
+
+| Service | Free tier | Watch out for |
+|---|---|---|
+| Supabase | 500 MB DB, 1 GB storage, unlimited API | **Pauses after 7 days idle** — poke it the morning of the demo |
+| Render | 750 h/month web service | **Spins down after 15 min idle**; ~50 s cold start |
+| Vercel | Hobby: unlimited static, 100 GB bandwidth | Non-commercial only |
+| GitHub | Unlimited public repos + Actions | Fine |
+| AgentOps | Free developer tier | Trace retention capped |
+| CrewAI | Open source (`pip install crewai`) | Free unless you use their hosted product |
+| LangGraph / LangChain / LangMem | Open source | LangSmith tracing is a *separate paid* product — leave `LANGCHAIN_TRACING_V2=false` |
+
+**Total monthly cost: $0.** Say that number out loud to judges — "runs entirely on free tiers" is a real engineering result for a hospital-facing prototype, and it means a resource-limited department could actually pilot it.
+
+---
 
 ---
 
@@ -118,12 +204,12 @@ Bolded gates are hard stops in the graph — the LangGraph run **interrupts** an
 
 ```python
 graph = StateGraph(PatientEncounter)
-graph.add_node("intake",       intake_agent)        # sonnet
-graph.add_node("triage",       triage_agent)        # sonnet  -> ESI 1-5
-graph.add_node("history",      history_agent)       # sonnet  -> SOAP
-graph.add_node("orders",       orders_agent)        # sonnet  -> lab + imaging panel
-graph.add_node("radiology",    radiology_agent)     # opus (vision)
-graph.add_node("synthesis",    synthesis_agent)     # opus -> dx + report + disposition
+graph.add_node("intake",       intake_agent)        # groq  llama-3.3-70b
+graph.add_node("triage",       triage_agent)        # groq  -> ESI 1-5
+graph.add_node("history",      history_agent)       # groq  -> SOAP
+graph.add_node("orders",       orders_agent)        # groq  -> lab + imaging panel
+graph.add_node("radiology",    radiology_agent)     # gemini-2.5-flash (VISION)
+graph.add_node("synthesis",    synthesis_agent)     # gemini-2.5-flash -> dx + report + disposition
 
 graph.set_entry_point("intake")
 graph.add_edge("intake", "triage")
@@ -157,14 +243,14 @@ def node(state: PatientEncounter) -> dict:
        {"errors": [...], "<own_field>": None} so the graph can continue degraded."""
 ```
 
-| Node | Reads | Owns (writes) | Model |
+| Node | Reads | Owns (writes) | `get_llm()` task |
 |---|---|---|---|
-| `intake` | `raw_registration` | `patient`, `insurance`, `chief_complaint` | sonnet |
-| `triage` | `patient`, `chief_complaint`, `vitals` | `esi_level`, `red_flags` | sonnet |
-| `history` | `patient`, `chief_complaint` | `hpi`, `pmh`, `medications`, `allergies`, `family_hx`, `surgical_hx`, `soap_note` | sonnet |
-| `orders` | everything clinical | `lab_orders`, `imaging_orders`, `order_rationale` | sonnet |
-| `radiology` | `imaging_orders`, `cxr_image_url` | `cxr_findings`, `cxr_impression`, `cxr_confidence` | **opus (vision)** |
-| `synthesis` | all | `differential`, `final_diagnosis`, `severity_scores`, `disposition`, `ed_report_md` | **opus** |
+| `intake` | `raw_registration` | `patient`, `insurance`, `chief_complaint` | `fast` |
+| `triage` | `patient`, `chief_complaint`, `vitals` | `esi_level`, `red_flags` | `fast` |
+| `history` | `patient`, `chief_complaint` | `hpi`, `pmh`, `medications`, `allergies`, `family_hx`, `surgical_hx`, `soap_note` | `fast` |
+| `orders` | everything clinical | `lab_orders`, `imaging_orders`, `order_rationale` | `fast` |
+| `radiology` | `imaging_orders`, `cxr_image_url` | `cxr_findings`, `cxr_impression`, `cxr_confidence` | **`vision`** |
+| `synthesis` | all | `differential`, `final_diagnosis`, `severity_scores`, `disposition`, `ed_report_md` | **`reason`** |
 
 ---
 
@@ -457,7 +543,7 @@ insert into storage.buckets (id, name, public) values ('cxr', 'cxr', false)
 ## 8. Repository layout
 
 ```
-ed-copilot/
+IbnSina/
 ├── README.md                    # regulatory banner at the top
 ├── docker-compose.yml           # api + local supabase (optional)
 ├── .env.example
@@ -475,7 +561,8 @@ ed-copilot/
 │   │   ├── scores.py            # curb65, qsofa, idsa_ats  (pure, unit-tested)
 │   │   ├── panels.py            # CAP lab panel definitions (Section 6.1)
 │   │   └── rules.py             # disposition override rules (Section 6.3)
-│   ├── memory.py                # LangMem store wiring
+│   ├── llm.py                   # ← SINGLE provider router + fallbacks + cache (Section 3.5)
+│   ├── memory.py                # LangMem store wiring (local embeddings)
 │   ├── db.py                    # Supabase client + audit_log helper
 │   └── telemetry.py             # AgentOps init
 ├── web/                         # Next.js on Vercel  (or streamlit_app.py)
@@ -496,10 +583,13 @@ If you're 2 people: A absorbs B's node work, C stays whole. If you're 4, D takes
 
 ### T-15 → T-0: pre-flight (before the clock)
 - [ ] GitHub repo created, all three cloned, `main` branch protected off.
-- [ ] Anthropic API key, Supabase project (URL + service key), AgentOps key, Render + Vercel accounts linked to GitHub.
+- [ ] **A Google AI Studio key AND a Groq key per developer** (`aistudio.google.com/apikey`, `console.groq.com/keys`). Both free, no card. Separate keys = separate rate limits.
+- [ ] Supabase project (URL + service key), AgentOps key, Render + Vercel accounts linked to GitHub.
+- [ ] **Smoke-test both keys before T+0** — one text call to Groq, one image call to Gemini. A dead key discovered at T+35 costs the demo.
+- [ ] *(Optional but recommended)* `ollama pull llava` on one laptop — offline fallback if conference wifi dies.
 - [ ] `.env.example` committed with every key name.
 - [ ] 3 synthetic CAP cases + 2 distractor cases (CHF exacerbation, PE) written as JSON. **Have real public-domain chest X-ray images downloaded to disk already.**
-- [ ] `pip install -U langgraph langchain langchain-anthropic langmem fastapi uvicorn supabase agentops pydantic` verified on each machine.
+- [ ] `pip install -U langgraph langchain langchain-google-genai langchain-groq langmem fastapi uvicorn python-multipart supabase agentops pydantic sentence-transformers` verified on each machine.
 
 ### T+0 → T+10 · Skeleton and **deploy immediately**
 | Who | Task |
@@ -524,7 +614,7 @@ If you're 2 people: A absorbs B's node work, C stays whole. If you're 4, D takes
 ### T+30 → T+45 · The two agents that carry the demo
 | Who | Task |
 |---|---|
-| B | `radiology` agent — Claude vision, constrained prompt (6.4), `CXRRead` output. Test against your pre-downloaded images. |
+| B | `radiology` agent — **Gemini 2.5 Flash vision**, constrained prompt (6.4), `CXRRead` output. Test against your pre-downloaded images. **Cache every successful read to disk immediately.** |
 | B | `synthesis` agent — differential + final dx + calls `scores.py` (never computes scores itself) + disposition + markdown ED report. |
 | A | Supabase persistence: write `state` jsonb on every node, write `audit_log` on every proposal/approval. |
 | A | AgentOps `init()` + session per encounter. |
@@ -545,14 +635,29 @@ If you're 2 people: A absorbs B's node work, C stays whole. If you're 4, D takes
 
 ### 10.0 `.env.example`
 ```
-ANTHROPIC_API_KEY=
+# --- Inference (all free tiers) ---
+GOOGLE_API_KEY=              # aistudio.google.com/apikey  -- vision + reasoning
+GROQ_API_KEY=                # console.groq.com/keys       -- fast text agents
+OPENROUTER_API_KEY=          # optional third fallback
+OLLAMA_BASE_URL=http://localhost:11434   # offline demo insurance
+
+MODEL_VISION=gemini-2.5-flash
+MODEL_REASON=gemini-2.5-flash
+MODEL_FAST=llama-3.3-70b-versatile
+
+# --- Data / ops (all free tiers) ---
 SUPABASE_URL=
 SUPABASE_SERVICE_KEY=
 AGENTOPS_API_KEY=
-LANGCHAIN_TRACING_V2=false
+LANGCHAIN_TRACING_V2=false   # LangSmith is PAID - keep this false
+
+# --- App ---
 APP_ENV=demo
-CORS_ORIGINS=https://ed-copilot.vercel.app,http://localhost:3000
+LLM_CACHE_DIR=.llm_cache     # prompt-hash cache; re-running a case costs 0 calls
+CORS_ORIGINS=https://ibnsina.vercel.app,http://localhost:3000
 ```
+
+> **Each developer uses their own `GOOGLE_API_KEY` and `GROQ_API_KEY`.** Shared keys mean shared rate limits, and three people testing at once will trip 15 RPM and waste 20 minutes debugging a "bug" that is really a 429.
 
 ### 10.1 `api/Dockerfile`
 ```dockerfile
@@ -607,7 +712,10 @@ Each returns a 1–5 score with justification, written to `eval/results.json`.
 | CURB-65 computation accuracy | **100%** | `tests/test_scores.py` — deterministic, so anything below 100% is a bug |
 | Disposition concordance with clinician | Report honestly | Reviewer crew + manual label on 5 cases |
 | Cannot-miss diagnosis recall | **100% on the 5 cases** | Safety reviewer |
-| Median cost per encounter | < $0.15 | AgentOps |
+| **Cost per encounter** | **$0.00** | Free tiers only — state this explicitly on the slide |
+| LLM calls per encounter | ≤ 6 | AgentOps span count |
+| Cache hit rate during testing | > 70% | `llm.py` counters |
+| 429 rate-limit failures reaching the user | **0** | Fallback chain must absorb them silently |
 
 **A note on honesty that will win you points:** n=5 synthetic cases is not validation, and judges who know clinical AI will test whether you know that. Present it as "the harness is built and here are the first results" rather than "our system is 95% accurate." Overclaiming is the fastest way to lose a technically literate panel.
 
@@ -631,7 +739,7 @@ Each returns a 1–5 score with justification, written to `eval/results.json`.
 4. **Uncertainty is mandatory output.** `CXRRead.limitations` is a required field. A model that can't say "AP projection, suboptimal inspiration, limited assessment of the left base" is not safe to deploy anywhere.
 5. **No numeric probabilities from the VLM.** Ordinal buckets only. A confident-sounding "87%" from an unvalidated model is actively harmful.
 6. **Full audit trail.** Every proposal and every human action, timestamped and attributable.
-7. **Synthetic data only.** No real PHI touches this system. Redaction helper (`haiku`) strips identifiers before any external call.
+7. **Synthetic data only.** No real PHI touches this system. Redaction helper (`llama-3.1-8b-instant`) strips identifiers before any external call.
 8. **Failure is degraded, not fatal.** A node that errors returns `{"errors": [...]}` and the graph continues with that section marked unavailable. A dead radiology agent must not block disposition.
 
 ---
@@ -672,6 +780,9 @@ Each returns a 1–5 score with justification, written to `eval/results.json`.
 | Render cold start during demo | **High** | High | Warm the URL 2 min before; keep a local uvicorn as backup |
 | CORS blocks the Vercel frontend | High | Medium | Middleware in the first commit; test cross-origin at T+15 |
 | VLM refuses to read a medical image | Medium | High | Test with your actual images before T+30; frame the prompt as "assisting a radiologist with a preliminary draft"; keep a cached good response in `demo_traces.json` |
+| **Free-tier 429 during the demo** | **High** | **High** | `.with_fallbacks()` Groq↔Gemini; per-developer keys; disk cache so demo cases never hit the network twice; Ollama as last resort |
+| Gemini free tier changes again (Pro was removed Apr 2026) | Medium | Medium | Model names live in `.env`, never hardcoded — swapping is a config change, not a code change |
+| Someone uploads a real patient film "just to test" | Medium | **Severe** | Free tiers train on submitted data. Synthetic images only, checked into the repo. State the rule in the README and out loud at kickoff |
 | Schema churn breaks parallel work | Medium | **High** | Freeze at T+5; any change requires a verbal announcement and everyone pulls |
 | Supabase auth/RLS eats 15 minutes | Medium | Medium | Service key server-side only, permissive RLS, documented as a known gap |
 | Judges challenge clinical validity | **High** | High | Answer honestly: synthetic data, n=5, not validated, harness built. Confidence in your limitations beats defensiveness about them |
