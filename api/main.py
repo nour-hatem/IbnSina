@@ -100,9 +100,29 @@ def health_db():
         return {"supabase": "error", "detail": str(e)}
 
 
+@app.get("/encounters")
+def list_all_encounters():
+    from api.db import list_encounters
+    rows = list_encounters()
+    summaries = []
+    for row in rows:
+        state = row.get("state") or {}
+        patient = state.get("patient") or {}
+        summaries.append({
+            "encounter_id": row["id"],
+            "updated_at": row["updated_at"],
+            "patient_name": patient.get("full_name"),
+            "esi_level": state.get("esi_level"),
+            "chief_complaint": state.get("chief_complaint"),
+            "current_node": state.get("current_node"),
+            "disposition": (state.get("disposition") or {}).get("decision"),
+        })
+    return {"encounters": summaries}
+
+
 @app.post("/encounter")
 def create_encounter(req: CreateEncounterRequest):
-    encounter_id = str(uuid.uuid4())[:8]
+    encounter_id = str(uuid.uuid4())
 
     initial_state = {
         "encounter_id": encounter_id,

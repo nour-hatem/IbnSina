@@ -60,6 +60,25 @@ def load_encounter(encounter_id: str) -> dict | None:
         return None
 
 
+def list_encounters(limit: int = 50) -> list[dict]:
+    """Return a summary list of recent encounters for the board view.
+    Selects only lightweight fields, not the full state blob."""
+    sb = get_supabase()
+    if sb is None:
+        return []
+    try:
+        resp = (
+            sb.table("encounters")
+            .select("id, updated_at, state")
+            .order("updated_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return resp.data or []
+    except Exception:
+        return []
+
+
 def audit_log(
     encounter_id: str,
     actor: str,
