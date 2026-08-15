@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
@@ -37,7 +38,7 @@ def get_default_checkpointer():
             saver.setup()
             logger.info("Initialized PostgresSaver persistent checkpointer.")
             return saver
-        except Exception as e:
+        except (ImportError, AttributeError, RuntimeError, ValueError, OSError) as e:
             logger.warning("Failed to initialize PostgresSaver (%s); falling back to MemorySaver", e)
 
     return MemorySaver()

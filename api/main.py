@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import re
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -206,7 +207,7 @@ def _get_or_load_encounter(encounter_id: str) -> dict | None:
                     graph.update_state(config, state, as_node=current_node)
                 else:
                     graph.update_state(config, state)
-        except Exception as e:
+        except (KeyError, ValueError, AttributeError, TypeError, RuntimeError) as e:
             logger.warning("Failed to hydrate graph state for %s: %s", encounter_id, e)
         return state
 
