@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { NewEncounterModal } from "@/components/NewEncounterModal";
 import { ClinicalGateApproval } from "@/components/ClinicalGateApproval";
+import { EdReportView } from "@/components/EdReportView";
 import { listEncounters, getEncounter, runEncounterStep, ApiError } from "@/lib/api";
 import type { EncounterSummary, PatientEncounter } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Activity, Clock, CheckCircle2, AlertCircle, RefreshCw, ShieldAlert, Play, ArrowRight, Loader2 } from "lucide-react";
+import { User, Activity, Clock, CheckCircle2, AlertCircle, RefreshCw, ShieldAlert, Play, ArrowRight, Loader2, FileText } from "lucide-react";
 
 function getEsiBadgeStyle(esi: number | null) {
   if (esi === null) return "bg-slate-100 text-slate-700 border-slate-200";
@@ -70,6 +71,15 @@ export function EncounterBoard() {
   } | null>(null);
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [steppingId, setSteppingId] = useState<string | null>(null);
+
+  // ED Synthesis Report modal state
+  const [reportEncounterId, setReportEncounterId] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+
+  const handleOpenReport = (encounterId: string) => {
+    setReportEncounterId(encounterId);
+    setReportOpen(true);
+  };
 
   const fetchBoardData = async () => {
     try {
@@ -265,9 +275,11 @@ export function EncounterBoard() {
                     {enc.disposition && (
                       <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                         <span className="text-xs text-slate-500">Disposition</span>
-                        <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-800 font-medium">
-                          {enc.disposition.replace(/_/g, " ")}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-800 font-medium">
+                            {enc.disposition.replace(/_/g, " ")}
+                          </Badge>
+                        </div>
                       </div>
                     )}
                   </CardContent>
@@ -283,18 +295,28 @@ export function EncounterBoard() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleRunStep(enc.encounter_id)}
-                      disabled={isStepping}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-[var(--color-brand-900)] bg-[var(--color-brand-50)] hover:bg-[var(--color-brand-100)] border border-[var(--color-brand-200)] rounded-md transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      {isStepping ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Play className="h-3 w-3 text-[var(--color-brand-700)]" />
-                      )}
-                      Run Step
-                    </button>
+                    {enc.disposition || enc.current_node === "synthesis" ? (
+                      <button
+                        onClick={() => handleOpenReport(enc.encounter_id)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-[var(--color-brand-900)] bg-[var(--color-brand-100)] hover:bg-[var(--color-brand-200)] border border-[var(--color-brand-300)] rounded-md transition-colors cursor-pointer"
+                      >
+                        <FileText className="h-3.5 w-3.5 text-[var(--color-brand-700)]" />
+                        View ED Report
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleRunStep(enc.encounter_id)}
+                        disabled={isStepping}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-[var(--color-brand-900)] bg-[var(--color-brand-50)] hover:bg-[var(--color-brand-100)] border border-[var(--color-brand-200)] rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {isStepping ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Play className="h-3 w-3 text-[var(--color-brand-700)]" />
+                        )}
+                        Run Step
+                      </button>
+                    )}
                     <div className="flex items-center gap-1 text-slate-400 font-mono">
                       <Clock className="h-3.5 w-3.5" />
                       {formatTimestamp(enc.updated_at)}
@@ -316,6 +338,15 @@ export function EncounterBoard() {
           open={approvalOpen}
           onOpenChange={setApprovalOpen}
           onActionComplete={fetchBoardData}
+        />
+      )}
+
+      {/* ED Synthesis Report Dialog */}
+      {reportEncounterId && (
+        <EdReportView
+          encounterId={reportEncounterId}
+          open={reportOpen}
+          onOpenChange={setReportOpen}
         />
       )}
     </div>
