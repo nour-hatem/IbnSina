@@ -9,12 +9,16 @@ Model: fast (Groq)
 from __future__ import annotations
 
 import json
+import logging
+
+from pydantic import ValidationError
+
+logger = logging.getLogger(__name__)
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from api.llm import extract_text, get_llm
 from api.schemas import PatientEncounter
-
 
 SYSTEM_PROMPT = """\
 You are a paediatric emergency triage nurse. Assign an ESI (Emergency Severity
@@ -73,7 +77,8 @@ def triage_agent(state: PatientEncounter) -> dict:
         data = json.loads(extract_text(resp))
         esi = int(data["esi_level"])
         flags = [str(f) for f in data.get("red_flags", [])]
-    except Exception as e:
+    except (json.JSONDecodeError, ValidationError, KeyError, TypeError, ValueError) as e:
+        logger.warning("triage_agent parse error: %s", e)
         return {"errors": [f"triage_agent parse error: {e}"]}
 
     return {

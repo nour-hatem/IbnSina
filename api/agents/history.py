@@ -11,12 +11,16 @@ Model: fast (Groq)
 from __future__ import annotations
 
 import json
+import logging
+
+from pydantic import ValidationError
+
+logger = logging.getLogger(__name__)
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from api.llm import extract_text, get_llm
 from api.schemas import PatientEncounter
-
 
 SYSTEM_PROMPT = """\
 You are a paediatric emergency physician. Structure the clinical history from
@@ -68,7 +72,8 @@ def history_agent(state: PatientEncounter) -> dict:
 
     try:
         data = json.loads(extract_text(resp))
-    except Exception as e:
+    except (json.JSONDecodeError, ValidationError, KeyError, TypeError) as e:
+        logger.warning("history_agent parse error: %s", e)
         return {"errors": [f"history_agent parse error: {e}"]}
 
     soap = data.get("soap_note")

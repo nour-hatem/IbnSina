@@ -13,6 +13,11 @@ clinical/rules.py applied to the computed severity.
 from __future__ import annotations
 
 import json
+import logging
+
+from pydantic import ValidationError
+
+logger = logging.getLogger(__name__)
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -20,7 +25,6 @@ from api.clinical.rules import disposition_from_severity
 from api.clinical.scores import paediatric_severity
 from api.llm import extract_text, get_llm
 from api.schemas import DifferentialItem, PatientEncounter
-
 
 SYSTEM_PROMPT = """\
 You are a senior paediatric emergency physician synthesising all available data
@@ -99,7 +103,7 @@ def _build_encounter_summary(state: PatientEncounter) -> str:
             if lab.result_value:
                 lab_results.append(f"{lab.name}: {lab.result_value} [{lab.result_flag or 'pending'}]")
         if lab_results:
-            parts.append(f"Lab results:\n" + "\n".join(f"  - {r}" for r in lab_results))
+            parts.append("Lab results:\n" + "\n".join(f"  - {r}" for r in lab_results))
     if state.cxr_read:
         parts.append(f"CXR Read:\n  Impression: {state.cxr_read.impression}")
         parts.append(f"  Pneumonia likelihood: {state.cxr_read.pneumonia_likelihood}")
@@ -166,7 +170,7 @@ def synthesis_agent(state: PatientEncounter) -> dict:
         report = data.get("report_narrative", "")
         if result.get("severity"):
             sev = result["severity"]
-            report += f"\n\n---\n**Severity (computed, not LLM-generated):**\n"
+            report += "\n\n---\n**Severity (computed, not LLM-generated):**\n"
             report += f"- WHO classification: {sev.classification}\n"
             report += f"- Danger signs ({sev.who_danger_sign_count}): {', '.join(sev.who_danger_signs) if sev.who_danger_signs else 'none'}\n"
             report += f"- PIDS/IDSA severe: {'Yes' if sev.idsa_severe else 'No'}\n"
@@ -177,7 +181,8 @@ def synthesis_agent(state: PatientEncounter) -> dict:
             report += f"- Basis: {disp.severity_basis}\n"
         result["ed_report_md"] = report
 
-    except Exception as e:
+    except (json.JSONDecodeError, ValidationError, KeyError, TypeError, ValueError, RuntimeError) as e:
+        logger.warning("synthesis_agent LLM error: %s", e)
         result["errors"] = [f"synthesis_agent LLM error: {e}"]
         result["final_diagnosis"] = "Unable to generate — see errors"
         result["ed_report_md"] = f"Synthesis failed: {e}"

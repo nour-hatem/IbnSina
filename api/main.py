@@ -18,14 +18,16 @@ import re
 from dotenv import load_dotenv
 
 load_dotenv()
+import asyncio
+import json
+import logging
 import shutil
+import traceback
 import uuid
 from datetime import datetime, timezone
 
-import logging
-import traceback
-
-from fastapi import FastAPI, File, HTTPException, UploadFile
+import httpx
+from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -97,7 +99,7 @@ def health_db():
     try:
         sb.table("patients").select("mrn").limit(1).execute()
         return {"supabase": "connected"}
-    except Exception as e:
+    except (httpx.HTTPError, ValueError, KeyError, AttributeError, TypeError, RuntimeError) as e:
         return {"supabase": "error", "detail": str(e)}
 
 
@@ -175,8 +177,8 @@ def get_encounter(encounter_id: str):
                 "next": next_nodes,
                 "status": "interrupted" if next_nodes else "complete",
             }
-    except Exception:
-        pass
+    except (KeyError, ValueError, AttributeError, TypeError, RuntimeError) as e:
+        logger.warning("Failed to retrieve snapshot for %s: %s", encounter_id, e)
 
     if encounter_id in _encounters:
         return {
@@ -200,7 +202,7 @@ def run_encounter(encounter_id: str):
     snapshot = None
     try:
         snapshot = graph.get_state(config)
-    except Exception as e:
+    except (KeyError, ValueError, AttributeError, TypeError, RuntimeError) as e:
         logger.warning("get_state failed: %s", e)
 
     has_checkpoint = bool(snapshot and snapshot.values)
@@ -225,7 +227,7 @@ def run_encounter(encounter_id: str):
             initial = _encounters[encounter_id]
             for event in graph.stream(initial, config, stream_mode="values"):
                 result = event
-    except Exception as e:
+    except (KeyError, ValueError, AttributeError, TypeError, RuntimeError, httpx.HTTPError, json.JSONDecodeError) as e:
         tb = traceback.format_exc()
         logger.error("Graph execution error for %s:\n%s", encounter_id, tb)
         raise HTTPException(500, detail=f"Graph error: {e}\n\n{tb}")
@@ -266,7 +268,7 @@ def approve_gate(encounter_id: str, req: ApproveRequest):
     if not snapshot or not snapshot.next:
         raise HTTPException(400, "No pending approval gate")
 
-    pending_node = list(snapshot.next)[0]
+    pending_node = next(iter(snapshot.next))
     if req.gate and req.gate != pending_node:
         raise HTTPException(
             400,
@@ -318,7 +320,7 @@ def approve_gate(encounter_id: str, req: ApproveRequest):
         result = None
         for event in graph.stream(None, config, stream_mode="values"):
             result = event
-    except Exception as e:
+    except (KeyError, ValueError, AttributeError, TypeError, RuntimeError, httpx.HTTPError, json.JSONDecodeError) as e:
         tb = traceback.format_exc()
         logger.error("Graph resume error for %s:\n%s", encounter_id, tb)
         raise HTTPException(500, detail=f"Graph error: {e}\n\n{tb}")
@@ -342,8 +344,13 @@ def approve_gate(encounter_id: str, req: ApproveRequest):
     }
 
 
+def _save_file(uploaded_file: UploadFile, target_path: str):
+    with open(target_path, "wb") as f:
+        shutil.copyfileobj(uploaded_file.file, f)
+
+
 @app.post("/upload/cxr/{encounter_id}")
-async def upload_cxr(encounter_id: str, file: UploadFile = File(...)):
+async def upload_cxr(encounter_id: str, file: UploadFile):
     if encounter_id not in _encounters:
         raise HTTPException(404, f"Encounter {encounter_id} not found")
 
@@ -351,8 +358,7 @@ async def upload_cxr(encounter_id: str, file: UploadFile = File(...)):
     filename = f"{encounter_id}_cxr.{ext}"
     filepath = os.path.join(UPLOAD_DIR, filename)
 
-    with open(filepath, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    await asyncio.to_thread(_save_file, file, filepath)
 
     # Update encounter state with image path
     _encounters[encounter_id]["cxr_image_path"] = filepath
@@ -362,8 +368,8 @@ async def upload_cxr(encounter_id: str, file: UploadFile = File(...)):
     config = {"configurable": {"thread_id": encounter_id}}
     try:
         graph.update_state(config, {"cxr_image_path": filepath})
-    except Exception:
-        pass
+    except (KeyError, ValueError, AttributeError, TypeError, RuntimeError) as e:
+        logger.warning("Failed to update graph state with CXR path for %s: %s", encounter_id, e)
 
     audit_log(encounter_id, "system", "cxr_uploaded", payload={"path": filepath})
 

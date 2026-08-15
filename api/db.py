@@ -8,11 +8,18 @@ In that case, encounters live in-memory only (MemorySaver handles graph state).
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
+
+logger = logging.getLogger(__name__)
+
 _client = None
+
+DB_ERRORS = (httpx.HTTPError, ValueError, KeyError, AttributeError, TypeError, RuntimeError)
 
 
 def get_supabase():
@@ -30,7 +37,8 @@ def get_supabase():
 
         _client = create_client(url, key)
         return _client
-    except Exception:
+    except (ImportError, httpx.HTTPError, ValueError, KeyError, RuntimeError) as e:
+        logger.warning("Supabase client initialization failed: %s", e)
         return None
 
 
@@ -56,7 +64,8 @@ def save_encounter(encounter_id: str, state_dict: dict) -> bool:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }).execute()
         return True
-    except Exception:
+    except DB_ERRORS as e:
+        logger.error("Failed to save encounter %s to Supabase: %s", encounter_id, e)
         return False
 
 
@@ -67,7 +76,8 @@ def load_encounter(encounter_id: str) -> dict | None:
     try:
         resp = sb.table("encounters").select("state").eq("id", encounter_id).single().execute()
         return resp.data.get("state") if resp.data else None
-    except Exception:
+    except DB_ERRORS as e:
+        logger.warning("Failed to load encounter %s from Supabase: %s", encounter_id, e)
         return None
 
 
@@ -86,7 +96,8 @@ def list_encounters(limit: int = 50) -> list[dict]:
             .execute()
         )
         return resp.data or []
-    except Exception:
+    except DB_ERRORS as e:
+        logger.warning("Failed to list encounters from Supabase: %s", e)
         return []
 
 
@@ -113,5 +124,6 @@ def audit_log(
             "at": datetime.now(timezone.utc).isoformat(),
         }).execute()
         return True
-    except Exception:
+    except DB_ERRORS as e:
+        logger.error("Failed to write audit log for encounter %s: %s", encounter_id, e)
         return False

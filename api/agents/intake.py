@@ -8,11 +8,18 @@ Model: fast (Groq)
 
 from __future__ import annotations
 
-from langchain_core.messages import SystemMessage, HumanMessage
+import json
+import logging
+import uuid
+
+from pydantic import ValidationError
+
+logger = logging.getLogger(__name__)
+
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from api.llm import extract_text, get_llm
 from api.schemas import Insurance, Patient, PatientEncounter
-
 
 SYSTEM_PROMPT = """\
 You are a hospital reception data-entry assistant. Extract structured patient
@@ -60,19 +67,18 @@ def intake_agent(state: PatientEncounter) -> dict:
     ])
 
     try:
-        import json
         raw = extract_text(resp)
         if "```" in raw:
             raw = raw.split("```json")[-1].split("```")[0] if "```json" in raw else raw.split("```")[1].split("```")[0]
         data = json.loads(raw.strip())
         p = data["patient"]
         if not p.get("mrn"):
-            import uuid
             p["mrn"] = f"IBN-{uuid.uuid4().hex[:6].upper()}"
         patient = Patient(**p)
         insurance = Insurance(**data["insurance"])
         complaint = data["chief_complaint"]
-    except Exception as e:
+    except (json.JSONDecodeError, ValidationError, KeyError, TypeError) as e:
+        logger.warning("intake_agent parse error: %s", e)
         return {"errors": [f"intake_agent parse error: {e}"]}
 
     return {

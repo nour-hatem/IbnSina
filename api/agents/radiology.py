@@ -14,13 +14,17 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import os
+
+from pydantic import ValidationError
+
+logger = logging.getLogger(__name__)
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from api.llm import extract_text, get_llm, read_cache, write_cache
 from api.schemas import CXRRead, PatientEncounter
-
 
 SYSTEM_PROMPT = """\
 You are assisting a paediatric radiologist by drafting a STRUCTURED PRELIMINARY
@@ -80,8 +84,8 @@ def radiology_agent(state: PatientEncounter) -> dict:
         try:
             cxr = CXRRead(**json.loads(cached))
             return {"cxr_read": cxr, "current_node": "radiology"}
-        except Exception:
-            pass
+        except (json.JSONDecodeError, ValidationError, KeyError, TypeError) as e:
+            logger.warning("Cached CXR read invalid, ignoring: %s", e)
 
     ext = state.cxr_image_path.rsplit(".", 1)[-1].lower()
     mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}.get(ext, "image/jpeg")
@@ -103,7 +107,8 @@ def radiology_agent(state: PatientEncounter) -> dict:
         data["model_used"] = os.getenv("MODEL_VISION", "gemini-3.6-flash")
         cxr = CXRRead(**data)
         write_cache(cache_key, json.dumps(data))
-    except Exception as e:
+    except (json.JSONDecodeError, ValidationError, KeyError, TypeError) as e:
+        logger.warning("radiology_agent parse error: %s", e)
         return {"errors": [f"radiology_agent parse error: {e}\nRaw: {extract_text(resp)[:500]}"]}
 
     return {

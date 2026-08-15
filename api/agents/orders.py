@@ -13,13 +13,17 @@ for this specific patient and may add Tier 2 labs if severity warrants.
 from __future__ import annotations
 
 import json
+import logging
+
+from pydantic import ValidationError
+
+logger = logging.getLogger(__name__)
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from api.clinical.panels import get_cap_panel
 from api.llm import extract_text, get_llm
 from api.schemas import ImagingOrder, LabOrder, PatientEncounter
-
 
 SYSTEM_PROMPT = """\
 You are a paediatric emergency physician ordering investigations for a child
@@ -101,7 +105,8 @@ def orders_agent(state: PatientEncounter) -> dict:
         lab_orders = [LabOrder(**l) for l in data.get("lab_orders", [])]
         imaging_orders = [ImagingOrder(**i) for i in data.get("imaging_orders", [])]
         order_rationale = data.get("order_rationale", "")
-    except Exception as e:
+    except (json.JSONDecodeError, ValidationError, KeyError, TypeError) as e:
+        logger.warning("orders_agent parse error: %s", e)
         labs_fallback, img_fallback = get_cap_panel(severe=is_severe_hint)
         return {
             "lab_orders": labs_fallback,

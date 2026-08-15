@@ -6,7 +6,10 @@ Degrades gracefully if AGENTOPS_API_KEY is not set.
 
 from __future__ import annotations
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 _initialized = False
 
@@ -26,5 +29,6 @@ def init_telemetry() -> bool:
         agentops.init(api_key=key, default_tags=["ibn-sina", "ED-CAP"])
         _initialized = True
         return True
-    except Exception:
+    except (ImportError, ValueError, KeyError, AttributeError, RuntimeError) as e:
+        logger.warning("AgentOps telemetry initialization failed: %s", e)
         return False

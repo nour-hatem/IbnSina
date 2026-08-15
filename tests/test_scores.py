@@ -5,10 +5,9 @@ These are DETERMINISTIC tests. 100% pass rate is the only acceptable result.
 If any fail, the scoring code is broken, not the test.
 """
 
-import pytest
 
 from api.clinical.scores import paediatric_severity
-from api.schemas import PaediatricSeverity, Vitals
+from api.schemas import Vitals
 
 
 def _vitals(**kwargs) -> Vitals:
