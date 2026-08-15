@@ -106,7 +106,7 @@ export interface Approval {
   approved_by: string;
   approved_at: string;
   action: "accept" | "edit" | "reject";
-  edits?: Record<string, any> | null;
+  edits?: Record<string, unknown> | null;
 }
 
 export interface PatientEncounter {
@@ -187,7 +187,7 @@ export interface ApproveGateRequest {
   gate: string;
   approved_by?: string;
   action?: "accept" | "edit" | "reject";
-  edits?: Record<string, any> | null;
+  edits?: Record<string, unknown> | null;
 }
 
 export interface ApproveGateResponse {

@@ -108,9 +108,7 @@ export function EncounterBoard() {
 
   const fetchBoardData = async (isRetry = false) => {
     try {
-      if (!isRetry) {
-        setLoading(true);
-        setRetryAttempts(0);
+      if (isRetry) {
         setIsWakingUp(false);
       }
       setError(null);
@@ -123,27 +121,46 @@ export function EncounterBoard() {
       setError(message);
       setIsWakingUp(true);
     } finally {
-      if (!isRetry) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchBoardData();
+    let isMounted = true;
+    listEncounters()
+      .then((res) => {
+        if (isMounted) {
+          setEncounters(res.encounters || []);
+          setIsWakingUp(false);
+          setError(null);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (isMounted) {
+          const message = err instanceof Error ? err.message : "Failed to load active encounters";
+          setError(message);
+          setIsWakingUp(true);
+          setLoading(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Automatic retry effect when backend is waking up
   useEffect(() => {
-    if (!isWakingUp) return;
-
-    if (retryAttempts >= 18) {
-      setIsWakingUp(false);
-      return;
-    }
+    if (!isWakingUp || retryAttempts >= 18) return;
 
     const timer = setTimeout(() => {
-      setRetryAttempts((prev) => prev + 1);
+      setRetryAttempts((prev) => {
+        const next = prev + 1;
+        if (next >= 18) {
+          setIsWakingUp(false);
+        }
+        return next;
+      });
       fetchBoardData(true);
     }, 10000);
 

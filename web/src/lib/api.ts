@@ -13,9 +13,9 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export class ApiError extends Error {
   status: number;
-  body: any;
+  body: unknown;
 
-  constructor(status: number, message: string, body?: any) {
+  constructor(status: number, message: string, body?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
@@ -33,7 +33,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
 
-  let responseData: any;
+  let responseData: unknown;
   const contentType = response.headers.get("content-type");
   if (contentType && contentType.includes("application/json")) {
     responseData = await response.json();
@@ -111,7 +111,7 @@ export async function uploadCXR(
     body: formData,
   });
 
-  let responseData: any;
+  let responseData: unknown;
   const contentType = response.headers.get("content-type");
   if (contentType && contentType.includes("application/json")) {
     responseData = await response.json();
