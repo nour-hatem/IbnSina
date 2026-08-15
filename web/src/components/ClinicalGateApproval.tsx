@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { approveGate, uploadCXR, ApiError } from "@/lib/api";
+import { approveGate, ApiError } from "@/lib/api";
 import type { PatientEncounter } from "@/lib/types";
+import { CXRUploader } from "@/components/CXRUploader";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +23,6 @@ import {
   Activity,
   Microscope,
   Eye,
-  ShieldAlert,
 } from "lucide-react";
 
 interface ClinicalGateApprovalProps {
@@ -43,33 +43,10 @@ export function ClinicalGateApproval({
   onActionComplete,
 }: ClinicalGateApprovalProps) {
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
 
   const isRadiologyGate = gate === "radiology";
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setUploading(true);
-      setError(null);
-      setUploadSuccess(null);
-      const res = await uploadCXR(encounterId, file);
-      setUploadSuccess(`Chest X-ray image uploaded successfully (${res.cxr_path.split("/").pop()})`);
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Failed to upload Chest X-ray image.");
-      }
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleDecision = async (action: "accept" | "reject") => {
     try {
@@ -125,14 +102,6 @@ export function ClinicalGateApproval({
           </div>
         )}
 
-        {/* Success Alert for Image Upload */}
-        {uploadSuccess && (
-          <div className="p-3 rounded-lg bg-[var(--color-brand-100)] border border-[var(--color-brand-400)] text-[var(--color-brand-950)] text-xs flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-[var(--color-brand-800)] shrink-0" />
-            <span>{uploadSuccess}</span>
-          </div>
-        )}
-
         {/* Gate 1: Radiology Gate Review Content */}
         {isRadiologyGate && (
           <div className="space-y-4 text-xs text-slate-700">
@@ -182,21 +151,15 @@ export function ClinicalGateApproval({
               )}
             </div>
 
-            {/* CXR Image Upload Controls */}
-            <div className="p-3 rounded-lg border border-dashed border-[var(--color-brand-300)] bg-[var(--color-brand-50)]/30 space-y-2">
-              <span className="font-semibold text-slate-900 flex items-center gap-1.5">
+            {/* CXR Image Upload Component */}
+            <div className="space-y-1.5">
+              <span className="font-bold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                 <Upload className="h-3.5 w-3.5 text-[var(--color-brand-700)]" />
-                Upload Chest Radiograph (CXR) Image
+                Chest Radiograph (CXR) Attachment (Optional)
               </span>
-              <p className="text-[11px] text-slate-500">
-                Optional: Select a chest X-ray image file for the vision model agent to process during the radiology stage.
-              </p>
-              <input
-                type="file"
-                accept="image/jpeg,image/png"
-                onChange={handleFileUpload}
-                disabled={uploading || loading}
-                className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[var(--color-brand-700)] file:text-white hover:file:bg-[var(--color-brand-800)] file:cursor-pointer"
+              <CXRUploader
+                encounterId={encounterId}
+                disabled={loading}
               />
             </div>
 
@@ -300,7 +263,7 @@ export function ClinicalGateApproval({
           <button
             type="button"
             onClick={() => handleDecision("reject")}
-            disabled={loading || uploading}
+            disabled={loading}
             className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-[var(--color-brand-900)] bg-[var(--color-brand-100)] hover:bg-[var(--color-brand-200)] border border-[var(--color-brand-300)] rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
           >
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5 text-[var(--color-brand-800)]" />}
@@ -309,7 +272,7 @@ export function ClinicalGateApproval({
           <button
             type="button"
             onClick={() => handleDecision("accept")}
-            disabled={loading || uploading}
+            disabled={loading}
             className="inline-flex items-center justify-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-[var(--color-brand-700)] hover:bg-[var(--color-brand-800)] border border-[var(--color-brand-800)] rounded-lg transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
           >
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
