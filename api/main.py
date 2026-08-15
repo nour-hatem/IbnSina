@@ -107,7 +107,10 @@ def list_all_encounters():
     summaries = []
     for row in rows:
         state = row.get("state") or {}
-        patient = state.get("patient") or {}
+        patient_raw = state.get("patient")
+        patient = patient_raw if isinstance(patient_raw, dict) else {}
+        disp_raw = state.get("disposition")
+        disposition = disp_raw if isinstance(disp_raw, dict) else {}
         summaries.append({
             "encounter_id": row["id"],
             "updated_at": row["updated_at"],
@@ -115,7 +118,7 @@ def list_all_encounters():
             "esi_level": state.get("esi_level"),
             "chief_complaint": state.get("chief_complaint"),
             "current_node": state.get("current_node"),
-            "disposition": (state.get("disposition") or {}).get("decision"),
+            "disposition": disposition.get("decision"),
         })
     return {"encounters": summaries}
 
