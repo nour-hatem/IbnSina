@@ -63,6 +63,10 @@ export function EncounterBoard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Cold-start retry state
+  const [isWakingUp, setIsWakingUp] = useState(false);
+  const [retryAttempts, setRetryAttempts] = useState(0);
+
   // Active approval modal state
   const [selectedEncounter, setSelectedEncounter] = useState<{
     id: string;
@@ -81,22 +85,49 @@ export function EncounterBoard() {
     setReportOpen(true);
   };
 
-  const fetchBoardData = async () => {
+  const fetchBoardData = async (isRetry = false) => {
     try {
-      setLoading(true);
+      if (!isRetry) {
+        setLoading(true);
+        setRetryAttempts(0);
+        setIsWakingUp(false);
+      }
       setError(null);
       const res = await listEncounters();
       setEncounters(res.encounters || []);
+      setIsWakingUp(false);
+      setError(null);
     } catch (err: any) {
-      setError(err?.message || "Failed to load active encounters");
+      const message = err?.message || "Failed to load active encounters";
+      setError(message);
+      setIsWakingUp(true);
     } finally {
-      setLoading(false);
+      if (!isRetry) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     fetchBoardData();
   }, []);
+
+  // Automatic retry effect when backend is waking up
+  useEffect(() => {
+    if (!isWakingUp) return;
+
+    if (retryAttempts >= 18) {
+      setIsWakingUp(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setRetryAttempts((prev) => prev + 1);
+      fetchBoardData(true);
+    }, 10000);
+
+    return () => clearTimeout(timer);
+  }, [isWakingUp, retryAttempts]);
 
   const handleOpenGateModal = async (encounterId: string, suggestedGate?: "radiology" | "synthesis") => {
     try {
@@ -153,9 +184,9 @@ export function EncounterBoard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <NewEncounterModal onCreated={fetchBoardData} />
+          <NewEncounterModal onCreated={() => fetchBoardData()} />
           <button
-            onClick={fetchBoardData}
+            onClick={() => fetchBoardData()}
             disabled={loading}
             className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
           >
@@ -165,14 +196,50 @@ export function EncounterBoard() {
         </div>
       </div>
 
-      {/* Error View */}
-      {error && (
-        <div className="p-4 rounded-lg bg-[var(--color-brand-50)] border border-[var(--color-brand-300)] text-[var(--color-brand-900)] text-sm flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 text-[var(--color-brand-700)] shrink-0" />
-          <div>
-            <p className="font-semibold">Error Loading Board</p>
-            <p className="text-xs text-[var(--color-brand-800)]">{error}</p>
+      {/* Cold-Start Waking Up Banner */}
+      {isWakingUp && (
+        <div className="p-4 rounded-xl bg-[var(--color-brand-50)] border border-[var(--color-brand-300)] text-[var(--color-brand-900)] text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-[var(--color-brand-100)] text-[var(--color-brand-700)] shrink-0">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900 text-sm flex items-center gap-2">
+                Waking up the backend service...
+                <span className="text-slate-500 font-mono text-xs font-normal">
+                  (Attempt {retryAttempts + 1}/18)
+                </span>
+              </p>
+              <p className="text-xs text-slate-600 mt-0.5">
+                The backend service spins down after periods of inactivity. Booting up the multi-agent AI system usually takes 1-2 minutes on first load. Retrying automatically...
+              </p>
+            </div>
           </div>
+          <button
+            onClick={() => fetchBoardData()}
+            className="px-3 py-1.5 text-xs font-semibold text-[var(--color-brand-900)] bg-[var(--color-brand-100)] hover:bg-[var(--color-brand-200)] border border-[var(--color-brand-300)] rounded-lg transition-colors shrink-0 cursor-pointer self-start sm:self-center"
+          >
+            Retry Now
+          </button>
+        </div>
+      )}
+
+      {/* Error View (only shown if not currently waking up) */}
+      {!isWakingUp && error && (
+        <div className="p-4 rounded-lg bg-[var(--color-brand-50)] border border-[var(--color-brand-300)] text-[var(--color-brand-900)] text-sm flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-[var(--color-brand-700)] shrink-0" />
+            <div>
+              <p className="font-semibold">Error Loading Board</p>
+              <p className="text-xs text-[var(--color-brand-800)]">{error}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => fetchBoardData()}
+            className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors shrink-0 cursor-pointer"
+          >
+            Try Again
+          </button>
         </div>
       )}
 
