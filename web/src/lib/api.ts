@@ -42,11 +42,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   if (!response.ok) {
+    const errObj = responseData && typeof responseData === "object" ? (responseData as Record<string, unknown>) : null;
+    const detail = errObj?.detail;
     const errorMsg =
-      typeof responseData === "object" && responseData?.detail
-        ? typeof responseData.detail === "string"
-          ? responseData.detail
-          : JSON.stringify(responseData.detail)
+      detail
+        ? typeof detail === "string"
+          ? detail
+          : JSON.stringify(detail)
         : `API error ${response.status}: ${response.statusText}`;
 
     throw new ApiError(response.status, errorMsg, responseData);
@@ -120,11 +122,13 @@ export async function uploadCXR(
   }
 
   if (!response.ok) {
+    const errObj = responseData && typeof responseData === "object" ? (responseData as Record<string, unknown>) : null;
+    const detail = errObj?.detail;
     const errorMsg =
-      typeof responseData === "object" && responseData?.detail
-        ? typeof responseData.detail === "string"
-          ? responseData.detail
-          : JSON.stringify(responseData.detail)
+      detail
+        ? typeof detail === "string"
+          ? detail
+          : JSON.stringify(detail)
         : `API error ${response.status}: ${response.statusText}`;
 
     throw new ApiError(response.status, errorMsg, responseData);
