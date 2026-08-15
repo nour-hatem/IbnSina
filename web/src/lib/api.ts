@@ -3,6 +3,7 @@ import type {
   ApproveGateResponse,
   CreateEncounterRequest,
   CreateEncounterResponse,
+  EncounterSummary,
   GetEncounterResponse,
   RunEncounterResponse,
   UploadCXRResponse,
@@ -52,6 +53,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   return responseData as T;
+}
+
+export async function listEncounters(): Promise<{
+  encounters: EncounterSummary[];
+}> {
+  return request<{ encounters: EncounterSummary[] }>("/encounters", {
+    method: "GET",
+  });
 }
 
 export async function createEncounter(

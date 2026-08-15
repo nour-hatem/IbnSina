@@ -202,3 +202,13 @@ export interface UploadCXRResponse {
   cxr_path: string;
   status: string;
 }
+
+export interface EncounterSummary {
+  encounter_id: string;
+  updated_at: string;
+  patient_name: string | null;
+  esi_level: number | null;
+  chief_complaint: string | null;
+  current_node: string | null;
+  disposition: string | null;
+}
