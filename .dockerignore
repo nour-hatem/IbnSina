@@ -1,0 +1,19 @@
+# Dependencies & Build Outputs
+web/node_modules
+web/.next
+
+# Python runtime / cache
+api/__pycache__
+api/.llm_cache
+.pytest_cache
+
+# Version control & workspace artifacts
+.git
+.github
+.vscode
+.idea
+
+# Media & local storage
+uploads
+data
+chest_xray
