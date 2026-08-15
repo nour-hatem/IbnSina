@@ -27,6 +27,9 @@ FROM python:3.12-slim AS runner
 
 WORKDIR /app
 
+# Install runtime dependencies for Postgres (libpq5)
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 && rm -rf /var/lib/apt/lists/*
+
 # Copy virtual environment from builder stage
 COPY --from=builder /opt/venv /opt/venv
 
