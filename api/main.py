@@ -33,7 +33,7 @@ from pydantic import BaseModel
 
 logger = logging.getLogger("ibn_sina")
 
-from api.db import audit_log, save_encounter
+from api.db import audit_log, load_encounter, save_encounter
 from api.graph import get_graph
 from api.schemas import Approval, PatientEncounter
 from api.telemetry import init_telemetry
@@ -145,8 +145,80 @@ def create_encounter(req: CreateEncounterRequest):
     return {"encounter_id": encounter_id, "status": "created"}
 
 
+def _parse_pydantic_repr(val: str) -> dict | str:
+    """Read-time compatibility shim for legacy stringified Pydantic repr data.
+    New writes via save_encounter produce clean JSON dicts directly."""
+    if not isinstance(val, str) or "=" not in val:
+        return val
+    pairs = re.findall(r"(\w+)=(None|'[^']*'|\"[^\"]*\"|\d+\.?\d*|True|False)", val)
+    if not pairs:
+        return val
+    d = {}
+    for k, v in pairs:
+        if v == "None":
+            d[k] = None
+        elif v == "True":
+            d[k] = True
+        elif v == "False":
+            d[k] = False
+        elif (v.startswith("'") and v.endswith("'")) or (v.startswith('"') and v.endswith('"')):
+            d[k] = v[1:-1]
+        elif "." in v:
+            try:
+                d[k] = float(v)
+            except ValueError:
+                d[k] = v
+        else:
+            try:
+                d[k] = int(v)
+            except ValueError:
+                d[k] = v
+    return d if d else val
+
+
+def _normalize_state(obj: Any) -> Any:
+    if hasattr(obj, "model_dump"):
+        return _normalize_state(obj.model_dump(mode="json"))
+    if isinstance(obj, str):
+        return _parse_pydantic_repr(obj)
+    if isinstance(obj, dict):
+        return {k: _normalize_state(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize_state(v) for v in obj]
+    return obj
+
+
+def _get_or_load_encounter(encounter_id: str) -> dict | None:
+    if encounter_id in _encounters:
+        return _encounters[encounter_id]
+
+    raw_state = load_encounter(encounter_id)
+    if raw_state:
+        state = _normalize_state(raw_state)
+        _encounters[encounter_id] = state
+        try:
+            graph, _ = get_graph()
+            config = {"configurable": {"thread_id": encounter_id}}
+            snapshot = graph.get_state(config)
+            if not snapshot or not snapshot.values:
+                current_node = state.get("current_node")
+                if current_node:
+                    graph.update_state(config, state, as_node=current_node)
+                else:
+                    graph.update_state(config, state)
+        except Exception as e:
+            logger.warning("Failed to hydrate graph state for %s: %s", encounter_id, e)
+        return state
+
+    return None
+
+
 @app.get("/encounter/{encounter_id}")
 def get_encounter(encounter_id: str):
+    encounter_state = _get_or_load_encounter(encounter_id)
+    if not encounter_state:
+        raise HTTPException(404, f"Encounter {encounter_id} not found")
+
     graph, _ = get_graph()
     config = {"configurable": {"thread_id": encounter_id}}
 
@@ -166,20 +238,17 @@ def get_encounter(encounter_id: str):
     except (KeyError, ValueError, AttributeError, TypeError, RuntimeError) as e:
         logger.warning("Failed to retrieve snapshot for %s: %s", encounter_id, e)
 
-    if encounter_id in _encounters:
-        return {
-            "encounter_id": encounter_id,
-            "state": _encounters[encounter_id],
-            "next": [],
-            "status": "not_started",
-        }
-
-    raise HTTPException(404, f"Encounter {encounter_id} not found")
+    return {
+        "encounter_id": encounter_id,
+        "state": encounter_state,
+        "next": [],
+        "status": "not_started",
+    }
 
 
 @app.post("/encounter/{encounter_id}/run")
 def run_encounter(encounter_id: str):
-    if encounter_id not in _encounters:
+    if not _get_or_load_encounter(encounter_id):
         raise HTTPException(404, f"Encounter {encounter_id} not found")
 
     graph, _ = get_graph()
@@ -247,6 +316,8 @@ def run_encounter(encounter_id: str):
 
 @app.post("/encounter/{encounter_id}/approve")
 def approve_gate(encounter_id: str, req: ApproveRequest):
+    if not _get_or_load_encounter(encounter_id):
+        raise HTTPException(404, f"Encounter {encounter_id} not found")
     graph, _ = get_graph()
     config = {"configurable": {"thread_id": encounter_id}}
 
@@ -337,7 +408,7 @@ def _save_file(uploaded_file: UploadFile, target_path: str):
 
 @app.post("/upload/cxr/{encounter_id}")
 async def upload_cxr(encounter_id: str, file: UploadFile):
-    if encounter_id not in _encounters:
+    if not _get_or_load_encounter(encounter_id):
         raise HTTPException(404, f"Encounter {encounter_id} not found")
 
     ext = file.filename.rsplit(".", 1)[-1] if file.filename else "jpeg"

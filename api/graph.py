@@ -7,6 +7,8 @@ clinician-approval gates (orders -> radiology, radiology -> synthesis).
 
 from __future__ import annotations
 
+import logging
+import os
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
@@ -17,6 +19,28 @@ from api.agents.radiology import radiology_agent
 from api.agents.synthesis import synthesis_agent
 from api.agents.triage import triage_agent
 from api.schemas import PatientEncounter
+
+logger = logging.getLogger(__name__)
+
+
+def get_default_checkpointer():
+    """Return a persistent PostgresSaver checkpointer if database URL is provided,
+    otherwise fallback to MemorySaver.
+    """
+    db_url = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL") or os.getenv("SUPABASE_DB_URL")
+    if db_url:
+        try:
+            from langgraph.checkpoint.postgres import PostgresSaver
+
+            saver_cm = PostgresSaver.from_conn_string(db_url)
+            saver = saver_cm.__enter__()
+            saver.setup()
+            logger.info("Initialized PostgresSaver persistent checkpointer.")
+            return saver
+        except Exception as e:
+            logger.warning("Failed to initialize PostgresSaver (%s); falling back to MemorySaver", e)
+
+    return MemorySaver()
 
 
 def _esi_router(state: PatientEncounter) -> str:
@@ -36,7 +60,7 @@ def build_graph(checkpointer=None):
     Returns (compiled_graph, checkpointer).
     """
     if checkpointer is None:
-        checkpointer = MemorySaver()
+        checkpointer = get_default_checkpointer()
 
     graph = StateGraph(PatientEncounter)
 

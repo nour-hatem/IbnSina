@@ -253,7 +253,7 @@ export function ClinicalGateApproval({
             )}
 
             {/* Optional Notes Input */}
-            <Box spaceY={1} pt={2} borderTopWidth="1px" borderColor="slate.200">
+            <Field.Root spaceY={1} pt={2} borderTopWidth="1px" borderColor="slate.200">
               <Field.Label htmlFor="clinicianNotes" fontSize="xs" fontWeight="semibold" color="slate.700">
                 Clinician Review Notes (Optional)
               </Field.Label>
@@ -268,7 +268,7 @@ export function ClinicalGateApproval({
                 borderColor="slate.200"
                 _focus={{ borderColor: "brand.500" }}
               />
-            </Box>
+            </Field.Root>
 
             {/* Actions Footer */}
             <Dialog.Footer pt={3} display="flex" justifyContent="flex-end" gap={2}>

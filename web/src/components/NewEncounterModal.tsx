@@ -121,7 +121,7 @@ export function NewEncounterModal({ onCreated }: NewEncounterModalProps) {
               )}
 
               {/* Full Name */}
-              <Box spaceY={1.5}>
+              <Field.Root spaceY={1.5}>
                 <Field.Label htmlFor="fullName" fontSize="xs" fontWeight="semibold" color="slate.700">
                   Patient Full Name *
                 </Field.Label>
@@ -136,11 +136,11 @@ export function NewEncounterModal({ onCreated }: NewEncounterModalProps) {
                   _focus={{ borderColor: "brand.500" }}
                   required
                 />
-              </Box>
+              </Field.Root>
 
               {/* Age & Unit */}
               <SimpleGrid columns={3} gap={3}>
-                <Box gridColumn="span 2" spaceY={1.5}>
+                <Field.Root gridColumn="span 2" spaceY={1.5}>
                   <Field.Label htmlFor="age" fontSize="xs" fontWeight="semibold" color="slate.700">
                     Age *
                   </Field.Label>
@@ -158,9 +158,9 @@ export function NewEncounterModal({ onCreated }: NewEncounterModalProps) {
                     _focus={{ borderColor: "brand.500" }}
                     required
                   />
-                </Box>
+                </Field.Root>
 
-                <Box spaceY={1.5}>
+                <Field.Root spaceY={1.5}>
                   <Field.Label htmlFor="ageUnit" fontSize="xs" fontWeight="semibold" color="slate.700">
                     Unit
                   </Field.Label>
@@ -176,11 +176,11 @@ export function NewEncounterModal({ onCreated }: NewEncounterModalProps) {
                       <option value="months">Months</option>
                     </NativeSelect.Field>
                   </NativeSelect.Root>
-                </Box>
+                </Field.Root>
               </SimpleGrid>
 
               {/* Sex */}
-              <Box spaceY={1.5}>
+              <Field.Root spaceY={1.5}>
                 <Field.Label htmlFor="sex" fontSize="xs" fontWeight="semibold" color="slate.700">
                   Biological Sex *
                 </Field.Label>
@@ -197,10 +197,10 @@ export function NewEncounterModal({ onCreated }: NewEncounterModalProps) {
                     <option value="other">Other</option>
                   </NativeSelect.Field>
                 </NativeSelect.Root>
-              </Box>
+              </Field.Root>
 
               {/* Chief Complaint */}
-              <Box spaceY={1.5}>
+              <Field.Root spaceY={1.5}>
                 <Field.Label htmlFor="chiefComplaint" fontSize="xs" fontWeight="semibold" color="slate.700">
                   Chief Complaint &amp; Symptoms *
                 </Field.Label>
@@ -216,7 +216,7 @@ export function NewEncounterModal({ onCreated }: NewEncounterModalProps) {
                   _focus={{ borderColor: "brand.500" }}
                   required
                 />
-              </Box>
+              </Field.Root>
 
               <Dialog.Footer pt={2} display="flex" justifyContent="flex-end" gap={2}>
                 <Button

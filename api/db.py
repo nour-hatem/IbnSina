@@ -44,7 +44,7 @@ def get_supabase():
 
 def _clean_state(obj: Any) -> Any:
     if hasattr(obj, "model_dump"):
-        return obj.model_dump(mode="json")
+        return _clean_state(obj.model_dump(mode="json"))
     if isinstance(obj, dict):
         return {k: _clean_state(v) for k, v in obj.items()}
     if isinstance(obj, list):
@@ -53,6 +53,9 @@ def _clean_state(obj: Any) -> Any:
 
 
 def save_encounter(encounter_id: str, state_dict: dict) -> bool:
+    """Save encounter state to Supabase.
+    Ensures all Pydantic objects and nested models are converted to clean JSON dicts,
+    avoiding stringified repr values."""
     sb = get_supabase()
     if sb is None:
         return False
@@ -60,7 +63,7 @@ def save_encounter(encounter_id: str, state_dict: dict) -> bool:
         cleaned = _clean_state(state_dict)
         sb.table("encounters").upsert({
             "id": encounter_id,
-            "state": json.loads(json.dumps(cleaned, default=str)),
+            "state": json.loads(json.dumps(cleaned)),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }).execute()
         return True
