@@ -194,7 +194,7 @@ export interface ApproveGateResponse {
   encounter_id: string;
   state: PatientEncounter;
   next: string[];
-  status: "interrupted" | "complete";
+  status: "interrupted" | "complete" | "rejected";
 }
 
 export interface UploadCXRResponse {

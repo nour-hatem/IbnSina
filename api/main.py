@@ -281,6 +281,31 @@ def approve_gate(encounter_id: str, req: ApproveRequest):
         edits=req.edits,
     )
 
+    if req.action == "reject":
+        err_msg = f"Gate '{pending_node}' rejected by {req.approved_by}"
+        update = {"approvals": [approval], "errors": [err_msg]}
+        if req.edits:
+            update.update(req.edits)
+
+        graph.update_state(config, update)
+        audit_log(encounter_id, f"user:{req.approved_by}", "reject", node=pending_node)
+
+        snapshot = graph.get_state(config)
+        next_nodes = list(snapshot.next) if snapshot and snapshot.next else []
+        current_state = snapshot.values if snapshot and snapshot.values else _encounters.get(encounter_id, {})
+        if isinstance(current_state, PatientEncounter):
+            current_state = current_state.model_dump()
+
+        _encounters[encounter_id] = current_state
+        save_encounter(encounter_id, current_state)
+
+        return {
+            "encounter_id": encounter_id,
+            "state": current_state,
+            "next": next_nodes,
+            "status": "rejected",
+        }
+
     update = {"approvals": [approval]}
     if req.edits:
         update.update(req.edits)
