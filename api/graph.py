@@ -32,9 +32,10 @@ def get_default_checkpointer():
     if db_url:
         try:
             from langgraph.checkpoint.postgres import PostgresSaver
+            from psycopg_pool import ConnectionPool
 
-            saver_cm = PostgresSaver.from_conn_string(db_url)
-            saver = saver_cm.__enter__()
+            pool = ConnectionPool(conninfo=db_url, max_size=10, kwargs={"autocommit": True})
+            saver = PostgresSaver(pool)
             saver.setup()
             logger.info("Initialized PostgresSaver persistent checkpointer.")
             return saver
