@@ -89,20 +89,6 @@ def health():
     return {"status": "ok", "service": "ibn-sina", "version": "0.1.0"}
 
 
-@app.get("/health/db")
-def health_db():
-    from api.db import get_supabase
-
-    sb = get_supabase()
-    if sb is None:
-        return {"supabase": "not_connected", "reason": "missing env vars or client init failed"}
-    try:
-        sb.table("patients").select("mrn").limit(1).execute()
-        return {"supabase": "connected"}
-    except (httpx.HTTPError, ValueError, KeyError, AttributeError, TypeError, RuntimeError) as e:
-        return {"supabase": "error", "detail": str(e)}
-
-
 @app.get("/encounters")
 def list_all_encounters():
     from api.db import list_encounters
