@@ -108,17 +108,31 @@ def list_all_encounters():
     for row in rows:
         state = row.get("state") or {}
         patient_raw = state.get("patient")
-        patient = patient_raw if isinstance(patient_raw, dict) else {}
+        patient_name = None
+        if isinstance(patient_raw, dict):
+            patient_name = patient_raw.get("full_name")
+        elif isinstance(patient_raw, str):
+            match = re.search(r"full_name='([^']+)'", patient_raw)
+            if match:
+                patient_name = match.group(1)
+
         disp_raw = state.get("disposition")
-        disposition = disp_raw if isinstance(disp_raw, dict) else {}
+        disposition_str = None
+        if isinstance(disp_raw, dict):
+            disposition_str = disp_raw.get("decision")
+        elif isinstance(disp_raw, str):
+            match = re.search(r"decision='([^']+)'", disp_raw)
+            if match:
+                disposition_str = match.group(1)
+
         summaries.append({
             "encounter_id": row["id"],
             "updated_at": row["updated_at"],
-            "patient_name": patient.get("full_name"),
+            "patient_name": patient_name,
             "esi_level": state.get("esi_level"),
             "chief_complaint": state.get("chief_complaint"),
             "current_node": state.get("current_node"),
-            "disposition": disposition.get("decision"),
+            "disposition": disposition_str,
         })
     return {"encounters": summaries}
 

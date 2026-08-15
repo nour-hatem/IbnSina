@@ -34,14 +34,25 @@ def get_supabase():
         return None
 
 
+def _clean_state(obj: Any) -> Any:
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump(mode="json")
+    if isinstance(obj, dict):
+        return {k: _clean_state(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_clean_state(v) for v in obj]
+    return obj
+
+
 def save_encounter(encounter_id: str, state_dict: dict) -> bool:
     sb = get_supabase()
     if sb is None:
         return False
     try:
+        cleaned = _clean_state(state_dict)
         sb.table("encounters").upsert({
             "id": encounter_id,
-            "state": json.loads(json.dumps(state_dict, default=str)),
+            "state": json.loads(json.dumps(cleaned, default=str)),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }).execute()
         return True
