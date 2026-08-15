@@ -1,27 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  Box,
+  Flex,
+  HStack,
+  VStack,
+  SimpleGrid,
+  Button,
+  Badge,
+  Text,
+  Heading,
+  Dialog,
+} from "@chakra-ui/react";
 import { getEncounter, ApiError } from "@/lib/api";
 import type { PatientEncounter, DifferentialItem } from "@/lib/types";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import {
   FileText,
   ShieldCheck,
   AlertCircle,
   Loader2,
-  Activity,
   Stethoscope,
-  CheckCircle2,
-  AlertTriangle,
-  Info,
 } from "lucide-react";
 
 interface EdReportViewProps {
@@ -62,6 +61,8 @@ export function EdReportView({
       } catch (err: unknown) {
         if (err instanceof ApiError) {
           setError(err.message);
+        } else if (err instanceof Error) {
+          setError(err.message);
         } else {
           setError("Failed to load clinical encounter report.");
         }
@@ -83,14 +84,14 @@ export function EdReportView({
     lines.forEach((line, idx) => {
       const trimmed = line.trim();
       if (!trimmed) {
-        elements.push(<div key={idx} className="h-2" />);
+        elements.push(<Box key={idx} h={2} />);
         return;
       }
 
       // Horizontal Rule
       if (trimmed === "---") {
         elements.push(
-          <hr key={idx} className="my-3 border-slate-200" />
+          <Box key={idx} my={3} borderBottomWidth="1px" borderColor="slate.200" />
         );
         return;
       }
@@ -99,17 +100,13 @@ export function EdReportView({
       if (trimmed.startsWith("#")) {
         const level = trimmed.match(/^#+/)?.[0].length || 1;
         const text = trimmed.replace(/^#+\s*/, "");
-        const headerClass =
-          level === 1
-            ? "text-base font-bold text-[var(--color-brand-900)] mt-3 mb-1"
-            : level === 2
-            ? "text-sm font-bold text-slate-900 mt-3 mb-1"
-            : "text-xs font-semibold text-slate-800 mt-2 mb-1";
+        const headerColor = level === 1 ? "brand.900" : level === 2 ? "slate.900" : "slate.800";
+        const headerSize = level === 1 ? "sm" : level === 2 ? "xs" : "xs";
 
         elements.push(
-          <div key={idx} className={headerClass}>
+          <Heading key={idx} size={headerSize} fontWeight="bold" color={headerColor} mt={3} mb={1}>
             {parseBoldText(text)}
-          </div>
+          </Heading>
         );
         return;
       }
@@ -118,19 +115,19 @@ export function EdReportView({
       if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
         const text = trimmed.replace(/^[-*]\s*/, "");
         elements.push(
-          <div key={idx} className="flex items-start gap-2 text-xs text-slate-700 ml-2 my-0.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand-600)] mt-1.5 shrink-0" />
-            <span>{parseBoldText(text)}</span>
-          </div>
+          <Flex key={idx} align="flex-start" gap={2} fontSize="xs" color="slate.700" ml={2} my={0.5}>
+            <Box h="6px" w="6px" borderRadius="full" bg="brand.600" mt={1.5} flexShrink={0} />
+            <Text fontSize="xs" color="slate.700">{parseBoldText(text)}</Text>
+          </Flex>
         );
         return;
       }
 
       // Default paragraph line
       elements.push(
-        <p key={idx} className="text-xs text-slate-700 leading-relaxed my-1">
+        <Text key={idx} fontSize="xs" color="slate.700" lineHeight="relaxed" my={1}>
           {parseBoldText(trimmed)}
-        </p>
+        </Text>
       );
     });
 
@@ -143,9 +140,9 @@ export function EdReportView({
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**")) {
         return (
-          <strong key={i} className="font-semibold text-slate-900">
+          <Text as="strong" key={i} fontWeight="semibold" color="slate.900">
             {part.slice(2, -2)}
-          </strong>
+          </Text>
         );
       }
       return part;
@@ -153,200 +150,229 @@ export function EdReportView({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white p-6 border-slate-200 text-slate-900 rounded-xl">
-        <DialogHeader className="pb-3 border-b border-slate-100">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-[var(--color-brand-100)] text-[var(--color-brand-800)]">
-                <FileText className="h-5 w-5" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  Emergency Department Final Synthesis Report
-                </DialogTitle>
-                <DialogDescription className="text-xs text-slate-500 font-mono">
-                  Encounter ID: {encounterId}
-                </DialogDescription>
-              </div>
-            </div>
-            {isComplete && (
-              <Badge variant="outline" className="bg-[var(--color-brand-700)] text-white text-xs border-[var(--color-brand-800)]">
-                Finalized
-              </Badge>
-            )}
-          </div>
-        </DialogHeader>
+    <Dialog.Root open={open} onOpenChange={(e) => onOpenChange(e.open)}>
+      <Dialog.Backdrop bg="blackAlpha.600" backdropFilter="blur(4px)" />
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-500">
-            <Loader2 className="h-8 w-8 animate-spin text-[var(--color-brand-600)]" />
-            <p className="text-xs font-medium">Fetching encounter synthesis report...</p>
-          </div>
-        )}
-
-        {/* Error / In-Progress State */}
-        {!loading && error && (
-          <div className="p-4 rounded-lg bg-[var(--color-brand-50)] border border-[var(--color-brand-300)] text-[var(--color-brand-950)] text-xs space-y-2 my-4">
-            <div className="flex items-center gap-2 font-semibold text-[var(--color-brand-900)]">
-              <AlertCircle className="h-4 w-4 text-[var(--color-brand-700)] shrink-0" />
-              <span>Report Unavailable</span>
-            </div>
-            <p className="text-[11px] leading-relaxed text-slate-700">{error}</p>
-          </div>
-        )}
-
-        {/* Completed Report Content */}
-        {!loading && encounterState && isComplete && (
-          <div className="space-y-6 pt-3 text-xs">
-            {/* Structured Highlights Box (Clinician Executive Summary) */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Stethoscope className="h-4 w-4 text-[var(--color-brand-700)]" />
-                Clinician Summary & Structured Assessments
-              </h3>
-
-              {/* 1. Working Diagnosis */}
-              <div className="p-3.5 rounded-lg border border-[var(--color-brand-300)] bg-[var(--color-brand-50)]/50 space-y-1">
-                <span className="text-[11px] font-semibold text-[var(--color-brand-900)] block uppercase tracking-wider">
-                  Final Working Diagnosis
-                </span>
-                <p className="text-sm font-bold text-slate-900">
-                  {encounterState.final_diagnosis || "Diagnosis pending clinical review"}
-                </p>
-              </div>
-
-              {/* 2. Structured Grid: Severity + Disposition */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Disposition Box */}
-                <div className="p-3 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-slate-900">Disposition</span>
-                    <Badge variant="outline" className="text-[10px] bg-[var(--color-brand-100)] text-[var(--color-brand-900)] border-[var(--color-brand-300)]">
-                      <ShieldCheck className="h-3 w-3 mr-1 text-[var(--color-brand-700)]" />
-                      Computed (Rule-Based)
-                    </Badge>
-                  </div>
-                  {encounterState.disposition ? (
-                    <div>
-                      <p className="font-bold text-slate-900 text-xs">
-                        {encounterState.disposition.decision}
-                      </p>
-                      <p className="text-[11px] text-slate-600 mt-1">
-                        {encounterState.disposition.rationale}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-slate-400 italic">No disposition computed</p>
-                  )}
-                </div>
-
-                {/* Severity Score Box */}
-                <div className="p-3 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-slate-900">Severity Assessment</span>
-                    <Badge variant="outline" className="text-[10px] bg-[var(--color-brand-100)] text-[var(--color-brand-900)] border-[var(--color-brand-300)]">
-                      <ShieldCheck className="h-3 w-3 mr-1 text-[var(--color-brand-700)]" />
-                      Computed (Deterministic)
-                    </Badge>
-                  </div>
-                  {encounterState.severity ? (
-                    <div className="space-y-1 font-mono text-[11px]">
-                      <div>
-                        Classification: <span className="font-semibold text-slate-900">{encounterState.severity.classification}</span>
-                      </div>
-                      <div>
-                        Danger Signs ({encounterState.severity.who_danger_sign_count ?? 0}):{" "}
-                        <span className="font-semibold text-slate-800">
-                          {encounterState.severity.who_danger_signs && encounterState.severity.who_danger_signs.length > 0
-                            ? encounterState.severity.who_danger_signs.join(", ")
-                            : "None"}
-                        </span>
-                      </div>
-                      <div>
-                        PIDS/IDSA Severe:{" "}
-                        <span className="font-semibold text-slate-900">
-                          {encounterState.severity.idsa_severe ? "Yes" : "No"}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-slate-400 italic">No severity score available</p>
-                  )}
-                </div>
-              </div>
-
-              {/* 3. Ranked Differential Diagnosis */}
-              {encounterState.differential && encounterState.differential.length > 0 && (
-                <div className="space-y-2">
-                  <span className="font-semibold text-slate-900 block">
-                    Ranked Differential Diagnosis ({encounterState.differential.length})
-                  </span>
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {encounterState.differential.map((diff: DifferentialItem, idx: number) => (
-                      <div
-                        key={idx}
-                        className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                      >
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-slate-900">
-                              {idx + 1}. {diff.diagnosis}
-                            </span>
-                            {diff.icd10 && (
-                              <span className="font-mono text-[10px] text-slate-500">[{diff.icd10}]</span>
-                            )}
-                            {diff.cannot_miss && (
-                              <Badge variant="outline" className="bg-[var(--color-brand-100)] text-[var(--color-brand-900)] border-[var(--color-brand-300)] text-[9px] py-0">
-                                Cannot-Miss
-                              </Badge>
-                            )}
-                          </div>
-                          {diff.supporting_evidence && diff.supporting_evidence.length > 0 && (
-                            <p className="text-[11px] text-slate-600">
-                              Supporting: {diff.supporting_evidence.join(", ")}
-                            </p>
-                          )}
-                        </div>
-                        <Badge
-                          variant="secondary"
-                          className="shrink-0 text-[10px] uppercase font-mono self-start sm:self-center bg-slate-200 text-slate-800"
-                        >
-                          Likelihood: {diff.likelihood}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+      <Dialog.Positioner>
+        <Dialog.Content bg="white" borderRadius="xl" borderWidth="1px" borderColor="slate.200" p={6} maxW="3xl" maxH="90vh" display="flex" flexDirection="column" w="full" boxShadow="xl">
+          {/* Fixed Header */}
+          <Dialog.Header flexShrink={0} pb={3} borderBottomWidth="1px" borderColor="slate.100">
+            <Flex align="center" justify="space-between" gap={3}>
+              <HStack gap={3}>
+                <Box p={2} borderRadius="lg" bg="brand.100" color="brand.800">
+                  <FileText className="h-5 w-5" />
+                </Box>
+                <Box>
+                  <Dialog.Title fontSize="lg" fontWeight="bold" color="slate.900" display="flex" alignItems="center" gap={2}>
+                    Emergency Department Final Synthesis Report
+                  </Dialog.Title>
+                  <Dialog.Description fontSize="xs" color="slate.500" fontFamily="mono">
+                    Encounter ID: {encounterId}
+                  </Dialog.Description>
+                </Box>
+              </HStack>
+              {isComplete && (
+                <Badge variant="outline" bg="brand.700" color="white" borderColor="brand.800" fontSize="xs" px={2.5} py={1} borderRadius="full">
+                  Finalized
+                </Badge>
               )}
-            </div>
+            </Flex>
+          </Dialog.Header>
 
-            {/* Narrative ED Report (Formatted Markdown Text) */}
-            <div className="pt-4 border-t border-slate-200 space-y-3">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <FileText className="h-4 w-4 text-[var(--color-brand-700)]" />
-                Emergency Department Report Narrative
-              </h3>
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/40 text-slate-800 font-sans leading-relaxed">
-                {encounterState.ed_report_md
-                  ? renderFormattedMarkdown(encounterState.ed_report_md)
-                  : <p className="text-slate-400 italic">No report narrative generated.</p>}
-              </div>
-            </div>
-          </div>
-        )}
+          {/* Scrollable Content Body (Prevents Boundary Overflow) */}
+          <Dialog.Body flex="1" overflowY="auto" py={4} spaceY={6}>
+            {/* Loading State */}
+            {loading && (
+              <VStack justify="center" py={12} gap={3} color="slate.500">
+                <Box color="brand.600"><Loader2 className="h-8 w-8 animate-spin" /></Box>
+                <Text fontSize="xs" fontWeight="medium">Fetching encounter synthesis report...</Text>
+              </VStack>
+            )}
 
-        <DialogFooter className="pt-4 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer"
-          >
-            Close Report
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            {/* Error / In-Progress State */}
+            {!loading && error && (
+              <Box p={4} borderRadius="lg" bg="brand.50" borderWidth="1px" borderColor="brand.300" color="brand.950" fontSize="xs" spaceY={2} my={2}>
+                <HStack gap={2} fontWeight="semibold" color="brand.900">
+                  <Box color="brand.700" display="inline-flex" flexShrink={0}><AlertCircle className="h-4 w-4" /></Box>
+                  <Text>Report Unavailable</Text>
+                </HStack>
+                <Text fontSize="11px" lineHeight="relaxed" color="slate.700">{error}</Text>
+              </Box>
+            )}
+
+            {/* Completed Report Content */}
+            {!loading && encounterState && isComplete && (
+              <VStack align="stretch" gap={6} fontSize="xs">
+                {/* Structured Highlights Box (Clinician Executive Summary) */}
+                <VStack align="stretch" gap={4}>
+                  <Heading size="xs" fontWeight="bold" color="slate.900" textTransform="uppercase" letterSpacing="wider" display="flex" alignItems="center" gap={1.5}>
+                    <Box color="brand.700" display="inline-flex"><Stethoscope className="h-4 w-4" /></Box>
+                    Clinician Summary & Structured Assessments
+                  </Heading>
+
+                  {/* 1. Working Diagnosis */}
+                  <Box p={3.5} borderRadius="lg" borderWidth="1px" borderColor="brand.300" bg="brand.50" spaceY={1}>
+                    <Text fontSize="11px" fontWeight="semibold" color="brand.900" display="block" textTransform="uppercase" letterSpacing="wider">
+                      Final Working Diagnosis
+                    </Text>
+                    <Text fontSize="sm" fontWeight="bold" color="slate.900">
+                      {encounterState.final_diagnosis || "Diagnosis pending clinical review"}
+                    </Text>
+                  </Box>
+
+                  {/* 2. Structured Grid: Severity + Disposition */}
+                  <SimpleGrid columns={{ base: 1, md: 2 }} gap={3}>
+                    {/* Disposition Box */}
+                    <Box p={3} borderRadius="lg" borderWidth="1px" borderColor="slate.200" bg="slate.50" spaceY={2}>
+                      <Flex align="center" justify="space-between">
+                        <Text fontWeight="semibold" color="slate.900">Disposition</Text>
+                        <Badge variant="outline" fontSize="10px" bg="brand.100" color="brand.900" borderColor="brand.300" px={2} py={0.5}>
+                          <Box color="brand.700" display="inline-flex" mr={1}><ShieldCheck className="h-3 w-3" /></Box>
+                          Computed (Rule-Based)
+                        </Badge>
+                      </Flex>
+                      {encounterState.disposition ? (
+                        <Box>
+                          <Text fontWeight="bold" color="slate.900" fontSize="xs">
+                            {encounterState.disposition.decision}
+                          </Text>
+                          <Text fontSize="11px" color="slate.600" mt={1}>
+                            {encounterState.disposition.rationale}
+                          </Text>
+                        </Box>
+                      ) : (
+                        <Text color="slate.400" fontStyle="italic">No disposition computed</Text>
+                      )}
+                    </Box>
+
+                    {/* Severity Score Box */}
+                    <Box p={3} borderRadius="lg" borderWidth="1px" borderColor="slate.200" bg="slate.50" spaceY={2}>
+                      <Flex align="center" justify="space-between">
+                        <Text fontWeight="semibold" color="slate.900">Severity Assessment</Text>
+                        <Badge variant="outline" fontSize="10px" bg="brand.100" color="brand.900" borderColor="brand.300" px={2} py={0.5}>
+                          <Box color="brand.700" display="inline-flex" mr={1}><ShieldCheck className="h-3 w-3" /></Box>
+                          Computed (Deterministic)
+                        </Badge>
+                      </Flex>
+                      {encounterState.severity ? (
+                        <VStack align="stretch" gap={1} fontFamily="mono" fontSize="11px">
+                          <Text>
+                            Classification: <Text as="span" fontWeight="semibold" color="slate.900">{encounterState.severity.classification}</Text>
+                          </Text>
+                          <Text>
+                            Danger Signs ({encounterState.severity.who_danger_sign_count ?? 0}):{" "}
+                            <Text as="span" fontWeight="semibold" color="slate.800">
+                              {encounterState.severity.who_danger_signs && encounterState.severity.who_danger_signs.length > 0
+                                ? encounterState.severity.who_danger_signs.join(", ")
+                                : "None"}
+                            </Text>
+                          </Text>
+                          <Text>
+                            PIDS/IDSA Severe:{" "}
+                            <Text as="span" fontWeight="semibold" color="slate.900">
+                              {encounterState.severity.idsa_severe ? "Yes" : "No"}
+                            </Text>
+                          </Text>
+                        </VStack>
+                      ) : (
+                        <Text color="slate.400" fontStyle="italic">No severity score available</Text>
+                      )}
+                    </Box>
+                  </SimpleGrid>
+
+                  {/* 3. Ranked Differential Diagnosis */}
+                  {encounterState.differential && encounterState.differential.length > 0 && (
+                    <Box spaceY={2}>
+                      <Text fontWeight="semibold" color="slate.900" display="block">
+                        Ranked Differential Diagnosis ({encounterState.differential.length})
+                      </Text>
+                      <VStack align="stretch" maxH="48" overflowY="auto" gap={1.5} pr={1}>
+                        {encounterState.differential.map((diff: DifferentialItem, idx: number) => (
+                          <Flex
+                            key={idx}
+                            p={2.5}
+                            borderRadius="lg"
+                            borderWidth="1px"
+                            borderColor="slate.200"
+                            bg="slate.50/70"
+                            direction={{ base: "column", sm: "row" }}
+                            align={{ sm: "center" }}
+                            justify="space-between"
+                            gap={2}
+                          >
+                            <Box spaceY={0.5}>
+                              <HStack gap={2}>
+                                <Text fontWeight="semibold" color="slate.900">
+                                  {idx + 1}. {diff.diagnosis}
+                                </Text>
+                                {diff.icd10 && (
+                                  <Text fontFamily="mono" fontSize="10px" color="slate.500">[{diff.icd10}]</Text>
+                                )}
+                                {diff.cannot_miss && (
+                                  <Badge variant="outline" bg="brand.100" color="brand.900" borderColor="brand.300" fontSize="9px" py={0}>
+                                    Cannot-Miss
+                                  </Badge>
+                                )}
+                              </HStack>
+                              {diff.supporting_evidence && diff.supporting_evidence.length > 0 && (
+                                <Text fontSize="11px" color="slate.600">
+                                  Supporting: {diff.supporting_evidence.join(", ")}
+                                </Text>
+                              )}
+                            </Box>
+                            <Badge
+                              variant="subtle"
+                              fontSize="10px"
+                              textTransform="uppercase"
+                              fontFamily="mono"
+                              bg="slate.200"
+                              color="slate.800"
+                              alignSelf={{ base: "flex-start", sm: "center" }}
+                              flexShrink={0}
+                            >
+                              Likelihood: {diff.likelihood}
+                            </Badge>
+                          </Flex>
+                        ))}
+                      </VStack>
+                    </Box>
+                  )}
+                </VStack>
+
+                {/* Narrative ED Report (Formatted Markdown Text) */}
+                <Box pt={4} borderTopWidth="1px" borderColor="slate.200" spaceY={3}>
+                  <Heading size="xs" fontWeight="bold" color="slate.900" textTransform="uppercase" letterSpacing="wider" display="flex" alignItems="center" gap={1.5}>
+                    <Box color="brand.700" display="inline-flex"><FileText className="h-4 w-4" /></Box>
+                    Emergency Department Report Narrative
+                  </Heading>
+                  <Box p={4} borderRadius="xl" borderWidth="1px" borderColor="slate.200" bg="slate.50/40" color="slate.800" fontFamily="sans" lineHeight="relaxed">
+                    {encounterState.ed_report_md
+                      ? renderFormattedMarkdown(encounterState.ed_report_md)
+                      : <Text color="slate.400" fontStyle="italic">No report narrative generated.</Text>}
+                  </Box>
+                </Box>
+              </VStack>
+            )}
+          </Dialog.Body>
+
+          {/* Fixed Footer */}
+          <Dialog.Footer flexShrink={0} pt={4} borderTopWidth="1px" borderColor="slate.100" display="flex" justifyContent="flex-end">
+            <Button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              size="xs"
+              variant="outline"
+              bg="slate.100"
+              color="slate.700"
+              borderColor="slate.300"
+              _hover={{ bg: "slate.200" }}
+              fontWeight="semibold"
+            >
+              Close Report
+            </Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   );
 }

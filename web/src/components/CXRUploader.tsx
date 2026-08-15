@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import {
+  Box,
+  Flex,
+  HStack,
+  VStack,
+  Button,
+  Text,
+} from "@chakra-ui/react";
 import { uploadCXR, ApiError } from "@/lib/api";
 import {
   Upload,
-  FileImage,
   CheckCircle2,
   AlertCircle,
   Loader2,
@@ -57,19 +64,16 @@ export function CXRUploader({
   const processAndUploadFile = async (file: File) => {
     setError(null);
 
-    // Validate before uploading
     const validationError = validateFile(file);
     if (validationError) {
       setError(validationError);
       return;
     }
 
-    // Revoke old object URL if exists
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
 
-    // Create preview
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
     setSelectedFile(file);
@@ -132,100 +136,150 @@ export function CXRUploader({
     }
   };
 
+  // Compute drop zone border/bg based on state
+  const dropZoneBorderColor = dragActive
+    ? "brand.600"
+    : uploadedPath
+    ? "brand.400"
+    : "brand.300";
+
+  const dropZoneBg = dragActive
+    ? "brand.100/60"
+    : uploadedPath
+    ? "brand.50/40"
+    : "brand.50/20";
+
+  const dropZoneHoverBg = uploadedPath ? "brand.50" : "brand.50/50";
+
   return (
-    <div className="space-y-2 text-xs">
+    <VStack align="stretch" gap={2} fontSize="xs">
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/jpeg,image/png"
         onChange={handleFileChange}
         disabled={disabled || uploading}
-        className="hidden"
+        style={{ display: "none" }}
       />
 
       {/* Drop zone / Upload box */}
-      <div
+      <Box
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={triggerSelect}
-        className={`relative p-4 rounded-xl border-2 border-dashed transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-2 ${
-          dragActive
-            ? "border-[var(--color-brand-600)] bg-[var(--color-brand-100)]/60"
-            : uploadedPath
-            ? "border-[var(--color-brand-400)] bg-[var(--color-brand-50)]/40 hover:bg-[var(--color-brand-50)]"
-            : "border-[var(--color-brand-300)] bg-[var(--color-brand-50)]/20 hover:bg-[var(--color-brand-50)]/50"
-        } ${disabled || uploading ? "opacity-60 cursor-not-allowed" : ""}`}
+        position="relative"
+        p={4}
+        borderRadius="xl"
+        borderWidth="2px"
+        borderStyle="dashed"
+        borderColor={dropZoneBorderColor}
+        bg={dropZoneBg}
+        _hover={{ bg: dropZoneHoverBg }}
+        transition="all 0.2s"
+        cursor={disabled || uploading ? "not-allowed" : "pointer"}
+        opacity={disabled || uploading ? 0.6 : 1}
+        display="flex"
+        flexDirection="column"
+        alignItems="center"
+        justifyContent="center"
+        gap={2}
       >
         {/* Uploading Spinner State */}
         {uploading ? (
-          <div className="flex flex-col items-center gap-2 py-3 text-[var(--color-brand-800)]">
-            <Loader2 className="h-6 w-6 animate-spin text-[var(--color-brand-600)]" />
-            <span className="font-medium text-xs">Uploading Chest Radiograph...</span>
-            <span className="text-[11px] text-slate-500">{selectedFile?.name}</span>
-          </div>
+          <VStack gap={2} py={3} color="brand.800">
+            <Box color="brand.600" display="inline-flex"><Loader2 className="h-6 w-6 animate-spin" /></Box>
+            <Text fontWeight="medium" fontSize="xs">Uploading Chest Radiograph...</Text>
+            <Text fontSize="11px" color="slate.500">{selectedFile?.name}</Text>
+          </VStack>
         ) : uploadedPath && previewUrl ? (
           /* Upload Success & Preview State */
-          <div className="w-full flex flex-col sm:flex-row items-center gap-4 py-1">
-            <div className="relative shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-[var(--color-brand-300)] bg-slate-900 flex items-center justify-center shadow-xs">
+          <Flex w="full" direction={{ base: "column", sm: "row" }} align="center" gap={4} py={1}>
+            {/* Thumbnail */}
+            <Box
+              position="relative"
+              flexShrink={0}
+              w="96px"
+              h="96px"
+              borderRadius="lg"
+              overflow="hidden"
+              borderWidth="1px"
+              borderColor="brand.300"
+              bg="gray.900"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              boxShadow="xs"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={previewUrl}
                 alt="CXR Preview"
-                className="w-full h-full object-cover"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
-            </div>
+            </Box>
 
-            <div className="flex-1 text-center sm:text-left space-y-1">
-              <div className="flex items-center justify-center sm:justify-start gap-1.5 text-[var(--color-brand-900)] font-semibold">
-                <CheckCircle2 className="h-4 w-4 text-[var(--color-brand-700)] shrink-0" />
-                <span>Radiograph Uploaded</span>
-              </div>
-              <p className="text-[11px] font-mono text-slate-600 truncate max-w-[280px]">
+            {/* Info & Replace */}
+            <VStack flex="1" align={{ base: "center", sm: "flex-start" }} gap={1}>
+              <HStack gap={1.5} color="brand.900" fontWeight="semibold">
+                <Box color="brand.700" display="inline-flex" flexShrink={0}><CheckCircle2 className="h-4 w-4" /></Box>
+                <Text>Radiograph Uploaded</Text>
+              </HStack>
+              <Text fontSize="11px" fontFamily="mono" color="slate.600" truncate maxW="280px">
                 {selectedFile?.name || uploadedPath.split("/").pop()}
-              </p>
-              <p className="text-[10px] text-slate-500">
-                Processed & attached for Radiology Vision Agent
-              </p>
-              <button
+              </Text>
+              <Text fontSize="10px" color="slate.500">
+                Processed &amp; attached for Radiology Vision Agent
+              </Text>
+              <Button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   triggerSelect();
                 }}
                 disabled={disabled || uploading}
-                className="inline-flex items-center gap-1 mt-1 px-2.5 py-1 text-[11px] font-medium text-[var(--color-brand-800)] bg-[var(--color-brand-100)] hover:bg-[var(--color-brand-200)] border border-[var(--color-brand-300)] rounded-md transition-colors cursor-pointer"
+                size="xs"
+                variant="outline"
+                bg="brand.100"
+                color="brand.800"
+                borderColor="brand.300"
+                _hover={{ bg: "brand.200" }}
+                mt={1}
+                fontSize="11px"
+                fontWeight="medium"
               >
                 <RefreshCw className="h-3 w-3" />
                 Replace Image
-              </button>
-            </div>
-          </div>
+              </Button>
+            </VStack>
+          </Flex>
         ) : (
           /* Default Idle / Drag-and-Drop Prompt State */
-          <div className="flex flex-col items-center gap-1.5 py-2 text-center">
-            <div className="p-2 rounded-full bg-[var(--color-brand-100)] text-[var(--color-brand-800)]">
+          <VStack gap={1.5} py={2} textAlign="center">
+            <Box p={2} borderRadius="full" bg="brand.100" color="brand.800">
               <Upload className="h-5 w-5" />
-            </div>
-            <div>
-              <span className="font-semibold text-slate-900">
+            </Box>
+            <Box>
+              <Text as="span" fontWeight="semibold" color="slate.900">
                 Click to browse
-              </span>{" "}
-              <span className="text-slate-500">or drag and drop chest X-ray</span>
-            </div>
-            <p className="text-[11px] text-slate-400">
+              </Text>{" "}
+              <Text as="span" color="slate.500">or drag and drop chest X-ray</Text>
+            </Box>
+            <Text fontSize="11px" color="slate.400">
               Supports JPEG and PNG formats (max 10 MB)
-            </p>
-          </div>
+            </Text>
+          </VStack>
         )}
-      </div>
+      </Box>
 
       {/* Inline Error Display (Blue-only palette) */}
       {error && (
-        <div className="p-2.5 rounded-lg bg-[var(--color-brand-50)] border border-[var(--color-brand-300)] text-[var(--color-brand-950)] text-xs flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-[var(--color-brand-700)] shrink-0" />
-          <span>{error}</span>
-        </div>
+        <Flex p={2.5} borderRadius="lg" bg="brand.50" borderWidth="1px" borderColor="brand.300" color="brand.950" fontSize="xs" align="center" gap={2}>
+          <Box color="brand.700" display="inline-flex" flexShrink={0}><AlertCircle className="h-4 w-4" /></Box>
+          <Text fontSize="xs">{error}</Text>
+        </Flex>
       )}
-    </div>
+    </VStack>
   );
 }

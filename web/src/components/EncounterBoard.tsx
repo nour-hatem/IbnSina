@@ -1,51 +1,72 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  Box,
+  Flex,
+  HStack,
+  VStack,
+  SimpleGrid,
+  Card,
+  Badge,
+  Button,
+  Heading,
+  Text,
+  Skeleton,
+} from "@chakra-ui/react";
 import { NewEncounterModal } from "@/components/NewEncounterModal";
 import { ClinicalGateApproval } from "@/components/ClinicalGateApproval";
 import { EdReportView } from "@/components/EdReportView";
-import { listEncounters, getEncounter, runEncounterStep, ApiError } from "@/lib/api";
+import { listEncounters, getEncounter, runEncounterStep } from "@/lib/api";
 import type { EncounterSummary, PatientEncounter } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { User, Activity, Clock, CheckCircle2, AlertCircle, RefreshCw, ShieldAlert, Play, ArrowRight, Loader2, FileText } from "lucide-react";
+import {
+  User,
+  Activity,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  ShieldAlert,
+  Play,
+  Loader2,
+  FileText,
+} from "lucide-react";
 
-function getEsiBadgeStyle(esi: number | null) {
-  if (esi === null) return "bg-slate-100 text-slate-700 border-slate-200";
+function getEsiBadgeProps(esi: number | null) {
+  if (esi === null) return { bg: "slate.100", color: "slate.700", borderColor: "slate.200" };
   switch (esi) {
     case 1:
-      return "bg-[var(--color-brand-950)] text-white border-[var(--color-brand-800)] font-semibold shadow-sm";
+      return { bg: "brand.950", color: "white", borderColor: "brand.800", fontWeight: "semibold" };
     case 2:
-      return "bg-[var(--color-brand-800)] text-white border-[var(--color-brand-700)] font-medium";
+      return { bg: "brand.800", color: "white", borderColor: "brand.700", fontWeight: "medium" };
     case 3:
-      return "bg-[var(--color-brand-600)] text-white border-[var(--color-brand-500)]";
+      return { bg: "brand.600", color: "white", borderColor: "brand.500" };
     case 4:
-      return "bg-[var(--color-brand-100)] text-[var(--color-brand-900)] border-[var(--color-brand-300)]";
+      return { bg: "brand.100", color: "brand.900", borderColor: "brand.300" };
     case 5:
-      return "bg-[var(--color-brand-50)] text-[var(--color-brand-800)] border-[var(--color-brand-200)]";
+      return { bg: "brand.50", color: "brand.800", borderColor: "brand.200" };
     default:
-      return "bg-slate-100 text-slate-700 border-slate-200";
+      return { bg: "slate.100", color: "slate.700", borderColor: "slate.200" };
   }
 }
 
-function getNodeBadgeStyle(node: string | null) {
-  if (!node) return "bg-slate-100 text-slate-600 border-slate-200";
+function getNodeBadgeProps(node: string | null) {
+  if (!node) return { bg: "slate.100", color: "slate.600", borderColor: "slate.200" };
   switch (node.toLowerCase()) {
     case "intake":
-      return "bg-[var(--color-brand-50)] text-[var(--color-brand-700)] border-[var(--color-brand-200)]";
+      return { bg: "brand.50", color: "brand.700", borderColor: "brand.200" };
     case "triage":
-      return "bg-[var(--color-brand-100)] text-[var(--color-brand-800)] border-[var(--color-brand-300)]";
+      return { bg: "brand.100", color: "brand.800", borderColor: "brand.300" };
     case "history":
-      return "bg-[var(--color-brand-200)] text-[var(--color-brand-900)] border-[var(--color-brand-400)]";
+      return { bg: "brand.200", color: "brand.900", borderColor: "brand.400" };
     case "orders":
-      return "bg-[var(--color-brand-600)] text-white border-[var(--color-brand-700)]";
+      return { bg: "brand.600", color: "white", borderColor: "brand.700" };
     case "radiology":
-      return "bg-[var(--color-brand-800)] text-white border-[var(--color-brand-900)]";
+      return { bg: "brand.800", color: "white", borderColor: "brand.900" };
     case "synthesis":
-      return "bg-[var(--color-brand-950)] text-white border-[var(--color-brand-800)]";
+      return { bg: "brand.950", color: "white", borderColor: "brand.800" };
     default:
-      return "bg-slate-100 text-slate-600 border-slate-200";
+      return { bg: "slate.100", color: "slate.600", borderColor: "slate.200" };
   }
 }
 
@@ -97,8 +118,8 @@ export function EncounterBoard() {
       setEncounters(res.encounters || []);
       setIsWakingUp(false);
       setError(null);
-    } catch (err: any) {
-      const message = err?.message || "Failed to load active encounters";
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to load active encounters";
       setError(message);
       setIsWakingUp(true);
     } finally {
@@ -142,8 +163,8 @@ export function EncounterBoard() {
         state: detail.state,
       });
       setApprovalOpen(true);
-    } catch (err: any) {
-      setError(err?.message || "Failed to fetch encounter details");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to fetch encounter details");
     } finally {
       setSteppingId(null);
     }
@@ -163,237 +184,283 @@ export function EncounterBoard() {
         setApprovalOpen(true);
       }
       await fetchBoardData();
-    } catch (err: any) {
-      setError(err?.message || "Failed to step encounter forward");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to step encounter forward");
     } finally {
       setSteppingId(null);
     }
   };
 
   return (
-    <div className="w-full space-y-6">
+    <Box w="full" spaceY={6}>
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <Activity className="h-5 w-5 text-[var(--color-brand-600)]" />
-            Paediatric Emergency Department Tracking
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Real-time multi-agent decision support tracking active clinical encounters.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <NewEncounterModal onCreated={() => fetchBoardData()} />
-          <button
-            onClick={() => fetchBoardData()}
-            disabled={loading}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh Board
-          </button>
-        </div>
-      </div>
+      <Box bg="white" p={6} borderRadius="xl" borderWidth="1px" borderColor="slate.200" boxShadow="xs">
+        <Flex direction={{ base: "column", sm: "row" }} align={{ sm: "center" }} justify="space-between" gap={4}>
+          <Box>
+            <Heading size="md" fontWeight="bold" color="slate.900" display="flex" alignItems="center" gap={2}>
+              <Box color="brand.600" display="inline-flex"><Activity className="h-5 w-5" /></Box>
+              Paediatric Emergency Department Tracking
+            </Heading>
+            <Text fontSize="sm" color="slate.500" mt={1}>
+              Real-time multi-agent decision support tracking active clinical encounters.
+            </Text>
+          </Box>
+          <HStack gap={3}>
+            <NewEncounterModal onCreated={() => fetchBoardData()} />
+            <Button
+              onClick={() => fetchBoardData()}
+              disabled={loading}
+              variant="outline"
+              size="sm"
+              borderColor="slate.200"
+              bg="slate.50"
+              _hover={{ bg: "slate.100" }}
+              color="slate.700"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh Board
+            </Button>
+          </HStack>
+        </Flex>
+      </Box>
 
       {/* Cold-Start Waking Up Banner */}
       {isWakingUp && (
-        <div className="p-4 rounded-xl bg-[var(--color-brand-50)] border border-[var(--color-brand-300)] text-[var(--color-brand-900)] text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-[var(--color-brand-100)] text-[var(--color-brand-700)] shrink-0">
-              <Loader2 className="h-5 w-5 animate-spin" />
-            </div>
-            <div>
-              <p className="font-semibold text-slate-900 text-sm flex items-center gap-2">
-                Waking up the backend service...
-                <span className="text-slate-500 font-mono text-xs font-normal">
-                  (Attempt {retryAttempts + 1}/18)
-                </span>
-              </p>
-              <p className="text-xs text-slate-600 mt-0.5">
-                The backend service spins down after periods of inactivity. Booting up the multi-agent AI system usually takes 1-2 minutes on first load. Retrying automatically...
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => fetchBoardData()}
-            className="px-3 py-1.5 text-xs font-semibold text-[var(--color-brand-900)] bg-[var(--color-brand-100)] hover:bg-[var(--color-brand-200)] border border-[var(--color-brand-300)] rounded-lg transition-colors shrink-0 cursor-pointer self-start sm:self-center"
-          >
-            Retry Now
-          </button>
-        </div>
+        <Box p={4} borderRadius="xl" bg="brand.50" borderWidth="1px" borderColor="brand.300" color="brand.900" shadow="xs">
+          <Flex direction={{ base: "column", sm: "row" }} align={{ sm: "center" }} justify="space-between" gap={3}>
+            <HStack gap={3} align="flex-start">
+              <Box p={2} borderRadius="lg" bg="brand.100" color="brand.700" flexShrink={0}>
+                <Loader2 className="h-5 w-5 animate-spin" />
+              </Box>
+              <Box>
+                <Text fontWeight="semibold" color="slate.900" fontSize="sm" display="flex" alignItems="center" gap={2}>
+                  Waking up the backend service...
+                  <Text as="span" color="slate.500" fontFamily="mono" fontSize="xs" fontWeight="normal">
+                    (Attempt {retryAttempts + 1}/18)
+                  </Text>
+                </Text>
+                <Text fontSize="xs" color="slate.600" mt={0.5}>
+                  The backend service spins down after periods of inactivity. Booting up the multi-agent AI system usually takes 1-2 minutes on first load. Retrying automatically...
+                </Text>
+              </Box>
+            </HStack>
+            <Button
+              onClick={() => fetchBoardData()}
+              size="xs"
+              variant="outline"
+              borderColor="brand.300"
+              bg="brand.100"
+              color="brand.900"
+              _hover={{ bg: "brand.200" }}
+              fontWeight="semibold"
+              flexShrink={0}
+            >
+              Retry Now
+            </Button>
+          </Flex>
+        </Box>
       )}
 
-      {/* Error View (only shown if not currently waking up) */}
+      {/* Error View */}
       {!isWakingUp && error && (
-        <div className="p-4 rounded-lg bg-[var(--color-brand-50)] border border-[var(--color-brand-300)] text-[var(--color-brand-900)] text-sm flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-[var(--color-brand-700)] shrink-0" />
-            <div>
-              <p className="font-semibold">Error Loading Board</p>
-              <p className="text-xs text-[var(--color-brand-800)]">{error}</p>
-            </div>
-          </div>
-          <button
-            onClick={() => fetchBoardData()}
-            className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors shrink-0 cursor-pointer"
-          >
-            Try Again
-          </button>
-        </div>
+        <Box p={4} borderRadius="lg" bg="brand.50" borderWidth="1px" borderColor="brand.300" color="brand.900">
+          <Flex align="center" justify="space-between" gap={3}>
+            <HStack gap={3}>
+              <Box color="brand.700" display="inline-flex" flexShrink={0}><AlertCircle className="h-5 w-5" /></Box>
+              <Box>
+                <Text fontWeight="semibold" fontSize="sm">Error Loading Board</Text>
+                <Text fontSize="xs" color="brand.800">{error}</Text>
+              </Box>
+            </HStack>
+            <Button
+              onClick={() => fetchBoardData()}
+              size="xs"
+              variant="outline"
+              bg="white"
+              _hover={{ bg: "slate.50" }}
+              borderColor="slate.300"
+              color="slate.700"
+            >
+              Try Again
+            </Button>
+          </Flex>
+        </Box>
       )}
 
       {/* Loading Skeleton */}
       {loading && !error && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={5}>
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="border-slate-200">
-              <CardHeader className="space-y-2">
-                <Skeleton className="h-5 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
-              </CardContent>
-              <CardFooter>
-                <Skeleton className="h-6 w-24" />
-              </CardFooter>
-            </Card>
+            <Box key={i} p={5} borderRadius="xl" borderWidth="1px" borderColor="slate.200" bg="white">
+              <VStack align="stretch" gap={3}>
+                <Skeleton height="20px" width="75%" />
+                <Skeleton height="16px" width="50%" />
+                <Skeleton height="16px" width="100%" />
+                <Skeleton height="16px" width="83%" />
+                <Skeleton height="24px" width="96px" />
+              </VStack>
+            </Box>
           ))}
-        </div>
+        </SimpleGrid>
       )}
 
       {/* Empty State */}
       {!loading && !error && encounters.length === 0 && (
-        <div className="text-center py-16 px-4 bg-white rounded-xl border border-dashed border-slate-300">
-          <div className="mx-auto h-12 w-12 rounded-full bg-[var(--color-brand-50)] flex items-center justify-center text-[var(--color-brand-600)] mb-4">
+        <Box textAlign="center" py={16} px={4} bg="white" borderRadius="xl" borderWidth="1px" borderStyle="dashed" borderColor="slate.300">
+          <Flex mx="auto" h={12} w={12} borderRadius="full" bg="brand.50" align="center" justify="center" color="brand.600" mb={4}>
             <CheckCircle2 className="h-6 w-6" />
-          </div>
-          <h3 className="text-base font-semibold text-slate-900">No Active Encounters</h3>
-          <p className="text-sm text-slate-500 max-w-sm mx-auto mt-1">
+          </Flex>
+          <Heading size="sm" fontWeight="semibold" color="slate.900">
+            No Active Encounters
+          </Heading>
+          <Text fontSize="sm" color="slate.500" maxW="sm" mx="auto" mt={1}>
             The emergency board is clear. New paediatric registrations will appear here in real time.
-          </p>
-        </div>
+          </Text>
+        </Box>
       )}
 
       {/* Encounter Grid */}
       {!loading && !error && encounters.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={5}>
           {encounters.map((enc) => {
             const isPendingApproval = enc.current_node === "orders" || enc.current_node === "radiology";
             const isStepping = steppingId === enc.encounter_id;
             const targetGate = enc.current_node === "radiology" ? "synthesis" : "radiology";
+            const esiProps = getEsiBadgeProps(enc.esi_level);
+            const nodeProps = getNodeBadgeProps(enc.current_node);
 
             return (
-              <Card
+              <Card.Root
                 key={enc.encounter_id}
-                className="group hover:border-[var(--color-brand-300)] transition-all duration-200 shadow-xs hover:shadow-md bg-white overflow-hidden border-slate-200 flex flex-col justify-between"
+                bg="white"
+                borderRadius="xl"
+                borderWidth="1px"
+                borderColor="slate.200"
+                boxShadow="xs"
+                _hover={{ borderColor: "brand.300", boxShadow: "md" }}
+                transition="all 0.2s"
+                overflow="hidden"
+                display="flex"
+                flexDirection="column"
+                justifyContent="space-between"
               >
-                <div>
-                  <CardHeader className="pb-3 border-b border-slate-100">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-lg bg-[var(--color-brand-50)] text-[var(--color-brand-700)]">
-                          <User className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-base font-bold text-slate-900 group-hover:text-[var(--color-brand-700)] transition-colors">
-                            {enc.patient_name || "Unnamed Patient"}
-                          </CardTitle>
-                          <CardDescription className="text-xs font-mono text-slate-400 mt-0.5">
-                            ID: {enc.encounter_id}
-                          </CardDescription>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className={`shrink-0 ${getEsiBadgeStyle(enc.esi_level)}`}>
-                        {enc.esi_level ? `ESI ${enc.esi_level}` : "ESI Pending"}
+                <Card.Body p={5} spaceY={4}>
+                  {/* Header: Name + ESI Badge */}
+                  <Flex align="flex-start" justify="space-between" gap={2} pb={3} borderBottomWidth="1px" borderColor="slate.100">
+                    <HStack gap={2.5}>
+                      <Box p={2} borderRadius="lg" bg="brand.50" color="brand.700">
+                        <User className="h-4 w-4" />
+                      </Box>
+                      <Box>
+                        <Text fontWeight="bold" fontSize="md" color="slate.900">
+                          {enc.patient_name || "Unnamed Patient"}
+                        </Text>
+                        <Text fontSize="xs" fontFamily="mono" color="slate.400" mt={0.5}>
+                          ID: {enc.encounter_id}
+                        </Text>
+                      </Box>
+                    </HStack>
+                    <Badge variant="outline" px={2.5} py={1} borderRadius="full" fontSize="xs" {...esiProps}>
+                      {enc.esi_level ? `ESI ${enc.esi_level}` : "ESI Pending"}
+                    </Badge>
+                  </Flex>
+
+                  {/* Chief Complaint */}
+                  <Box>
+                    <Text fontSize="xs" fontWeight="medium" color="slate.400" textTransform="uppercase" letterSpacing="wider" mb={1}>
+                      Chief Complaint
+                    </Text>
+                    <Text fontSize="sm" color="slate.700" fontWeight="medium" lineClamp={2}>
+                      {enc.chief_complaint || "No complaint recorded"}
+                    </Text>
+                  </Box>
+
+                  {/* Pending Approval Banner */}
+                  {isPendingApproval && (
+                    <Flex p={2.5} borderRadius="lg" bg="brand.50" borderWidth="1px" borderColor="brand.300" align="center" justify="space-between" gap={2}>
+                      <HStack gap={1.5} fontWeight="semibold" color="brand.900" fontSize="xs">
+                        <Box color="brand.700" display="inline-flex"><ShieldAlert className="h-4 w-4" /></Box>
+                        Pending Clinician Approval
+                      </HStack>
+                      <Button
+                        onClick={() => handleOpenGateModal(enc.encounter_id, targetGate)}
+                        disabled={isStepping}
+                        size="xs"
+                        bg="brand.700"
+                        color="white"
+                        _hover={{ bg: "brand.800" }}
+                        fontWeight="semibold"
+                      >
+                        Review & Gate
+                      </Button>
+                    </Flex>
+                  )}
+
+                  {enc.disposition && (
+                    <Flex pt={2} borderTopWidth="1px" borderColor="slate.100" align="center" justify="space-between">
+                      <Text fontSize="xs" color="slate.500">Disposition</Text>
+                      <Badge variant="subtle" bg="slate.100" color="slate.800" fontSize="xs" fontWeight="medium">
+                        {enc.disposition.replace(/_/g, " ")}
                       </Badge>
-                    </div>
-                  </CardHeader>
+                    </Flex>
+                  )}
+                </Card.Body>
 
-                  <CardContent className="pt-4 space-y-3">
-                    <div>
-                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wider block mb-1">
-                        Chief Complaint
-                      </span>
-                      <p className="text-sm text-slate-700 font-medium line-clamp-2">
-                        {enc.chief_complaint || "No complaint recorded"}
-                      </p>
-                    </div>
-
-                    {/* Pending Approval Badge Banner */}
-                    {isPendingApproval && (
-                      <div className="p-2.5 rounded-lg bg-[var(--color-brand-50)] border border-[var(--color-brand-300)] flex items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-1.5 font-semibold text-[var(--color-brand-900)]">
-                          <ShieldAlert className="h-4 w-4 text-[var(--color-brand-700)]" />
-                          Pending Clinician Approval
-                        </div>
-                        <button
-                          onClick={() => handleOpenGateModal(enc.encounter_id, targetGate)}
-                          disabled={isStepping}
-                          className="px-2.5 py-1 text-[11px] font-semibold text-white bg-[var(--color-brand-700)] hover:bg-[var(--color-brand-800)] rounded-md transition-colors cursor-pointer"
-                        >
-                          Review & Gate
-                        </button>
-                      </div>
-                    )}
-
-                    {enc.disposition && (
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                        <span className="text-xs text-slate-500">Disposition</span>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-800 font-medium">
-                            {enc.disposition.replace(/_/g, " ")}
-                          </Badge>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </div>
-
-                <CardFooter className="pt-3 pb-3 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                  <div className="flex items-center gap-1.5">
-                    <Activity className="h-3.5 w-3.5 text-slate-400" />
-                    <span className="font-medium">Stage:</span>
-                    <Badge variant="outline" className={`text-[11px] capitalize ${getNodeBadgeStyle(enc.current_node)}`}>
+                {/* Footer: Stage + Action Button + Timestamp */}
+                <Card.Footer px={5} py={3} bg="slate.50/60" borderTopWidth="1px" borderColor="slate.100" display="flex" alignItems="center" justifyContent="space-between" fontSize="xs">
+                  <HStack gap={1.5}>
+                    <Box color="slate.400" display="inline-flex"><Activity className="h-3.5 w-3.5" /></Box>
+                    <Text fontWeight="medium" color="slate.500">Stage:</Text>
+                    <Badge variant="outline" fontSize="xs" textTransform="capitalize" px={2} py={0.5} borderRadius="md" {...nodeProps}>
                       {enc.current_node || "Unstarted"}
                     </Badge>
-                  </div>
+                  </HStack>
 
-                  <div className="flex items-center gap-2">
+                  <HStack gap={2}>
                     {enc.disposition || enc.current_node === "synthesis" ? (
-                      <button
+                      <Button
                         onClick={() => handleOpenReport(enc.encounter_id)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-[var(--color-brand-900)] bg-[var(--color-brand-100)] hover:bg-[var(--color-brand-200)] border border-[var(--color-brand-300)] rounded-md transition-colors cursor-pointer"
+                        size="xs"
+                        variant="outline"
+                        bg="brand.100"
+                        color="brand.900"
+                        borderColor="brand.300"
+                        _hover={{ bg: "brand.200" }}
+                        fontWeight="semibold"
                       >
-                        <FileText className="h-3.5 w-3.5 text-[var(--color-brand-700)]" />
+                        <Box color="brand.700" display="inline-flex"><FileText className="h-3.5 w-3.5" /></Box>
                         View ED Report
-                      </button>
+                      </Button>
                     ) : (
-                      <button
+                      <Button
                         onClick={() => handleRunStep(enc.encounter_id)}
                         disabled={isStepping}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-[var(--color-brand-900)] bg-[var(--color-brand-50)] hover:bg-[var(--color-brand-100)] border border-[var(--color-brand-200)] rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                        size="xs"
+                        variant="outline"
+                        bg="brand.50"
+                        color="brand.900"
+                        borderColor="brand.200"
+                        _hover={{ bg: "brand.100" }}
+                        fontWeight="semibold"
                       >
                         {isStepping ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
-                          <Play className="h-3 w-3 text-[var(--color-brand-700)]" />
+                          <Box color="brand.700" display="inline-flex"><Play className="h-3 w-3" /></Box>
                         )}
                         Run Step
-                      </button>
+                      </Button>
                     )}
-                    <div className="flex items-center gap-1 text-slate-400 font-mono">
+                    <HStack gap={1} color="slate.400" fontFamily="mono">
                       <Clock className="h-3.5 w-3.5" />
-                      {formatTimestamp(enc.updated_at)}
-                    </div>
-                  </div>
-                </CardFooter>
-              </Card>
+                      <Text fontSize="xs">{formatTimestamp(enc.updated_at)}</Text>
+                    </HStack>
+                  </HStack>
+                </Card.Footer>
+              </Card.Root>
             );
           })}
-        </div>
+        </SimpleGrid>
       )}
 
       {/* Clinical Gate Approval Dialog */}
@@ -416,6 +483,6 @@ export function EncounterBoard() {
           onOpenChange={setReportOpen}
         />
       )}
-    </div>
+    </Box>
   );
 }
