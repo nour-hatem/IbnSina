@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { NewEncounterModal } from "@/components/NewEncounterModal";
 import { listEncounters } from "@/lib/api";
 import type { EncounterSummary } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -90,14 +91,17 @@ export function EncounterBoard() {
             Real-time multi-agent decision support tracking active clinical encounters.
           </p>
         </div>
-        <button
-          onClick={fetchBoardData}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh Board
-        </button>
+        <div className="flex items-center gap-3">
+          <NewEncounterModal onCreated={fetchBoardData} />
+          <button
+            onClick={fetchBoardData}
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh Board
+          </button>
+        </div>
       </div>
 
       {/* Error View */}
