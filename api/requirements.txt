@@ -18,6 +18,7 @@ python-multipart>=0.0.18
 
 # --- Database ---
 supabase>=2,<3
+psycopg[binary]>=3.1,<4
 psycopg-binary>=3.1,<4
 
 # --- Observability ---
